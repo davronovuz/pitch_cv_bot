@@ -1178,9 +1178,9 @@ async def admin_action_handler(call: types.CallbackQuery):
 
 @dp.callback_query_handler(lambda c: c.data == "pptx_tips", state='*')
 async def pptx_tips_handler(call: types.CallbackQuery):
-    await call.answer()
-    # 1) Matnli tavsiya (qisqacha)
-    text = (
+    await call.answer()  # callback'ga javob
+
+    tips_text = (
         "📌 PPTX tayyorlash bo'yicha tezkor tavsiyalar:\n\n"
         "1) Har bir slayd uchun bitta asosiy xabar — ortiqcha matn yozmang.\n"
         "2) Sarlavha va 3-4 ta bullet point bo'lsin.\n"
@@ -1189,12 +1189,21 @@ async def pptx_tips_handler(call: types.CallbackQuery):
         "5) Yakuniy CTA (aloqa / investor taklifi) bo'lsin.\n\n"
         "Quyi tugmadan videoni ko'rish yoki /help orqali batafsil ma'lumot oling."
     )
-    await call.message.answer(text)
-    await call.message.answer("🎬 Video yo'q bo'lsa: iltimos adminga video yuboring yoki fayl_id bilan yangilang.")
 
+    # Matnni yuboramiz (parse_mode bermaymiz — xatolardan qochish uchun)
+    await call.message.answer(tips_text)
 
+    # LOGdan olingan TOG'RI video file_id:
+    file_id = "BAACAgIAAxkBAAIEbWkdva_dB9kNCWcb8DmmDsdGo6AnAALoEgACpRlpSY0jnmDrEDCoNgQ"
 
-
+    try:
+        # Video yuborish (caption qisqa va parse_mode ishlatmaslik tavsiya etiladi)
+        await bot.send_video(chat_id=call.from_user.id, video=file_id, caption="🎬 PPTX tayyorlash bo'yicha qisqa video")
+    except Exception as e:
+        logger.error(f"pptx_tips: failed to send video: {e}")
+        await call.message.answer(
+            "❌ Video yuborilmadi. Iltimos admindan to'g'ri video file_id ni oling yoki video qayta yuborilsin."
+        )
 
 
 
