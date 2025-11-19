@@ -197,7 +197,6 @@ def start_keyboard():
         InlineKeyboardButton("✅ Boshlash", callback_data="start_yes"),
         InlineKeyboardButton("❌ Keyinroq", callback_data="start_no")
     )
-    kb.add(InlineKeyboardButton("📄 PPTX tavsiya (video)", callback_data="pptx_tips"))
 
     return kb
 
@@ -1267,21 +1266,17 @@ async def start_handler(message: types.Message, state: FSMContext):
         "✨ Barcha prezentatsiyalar O'ZBEK TILIDA!\n"
         "🤖 AI yordamida optimizatsiya qilinadi!\n\n"
         "Boshlaysizmi?\n\n"
-        "📹 Pitch tayyorlashdan AVVAL va tayyorlayotganingizda ushbu videoni ko'rib chiqishni tavsiya qilamiz."
+
     )
 
-    try:
-        # Bitta videoni caption bilan yuboramiz, ichida start matni ham bor
-        await bot.send_video(
+    await bot.send_video(
             chat_id=message.chat.id,
             video=file_id,
-            caption=text,              # parse_mode bermaymiz, shunchaki oddiy matn
-            reply_markup=start_keyboard()
+            caption="📹 Pitch tayyorlashdan AVVAL va tayyorlayotganingizda ushbu videoni ko'rib chiqishni tavsiya qilamiz.",              # parse_mode bermaymiz, shunchaki oddiy matn
+
         )
-    except Exception as e:
-        logger.error(f"Failed to send start video: {e}")
-        # Agar video yuborishda xatolik bo'lsa, kamida matn ketadigan bo'lsin
-        await message.answer(text, reply_markup=start_keyboard())
+    await message.answer(text,reply_markup=start_keyboard())
+
 
 
 
