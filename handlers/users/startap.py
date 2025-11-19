@@ -282,106 +282,74 @@ def format_order_info(order: Dict) -> str:
     return result
 
 
-# ==================== AI ENHANCEMENT FUNKSIYALARI ====================
-async def enhance_answers_with_openai(answers: List[str], package: str) -> List[str]:
-    """Javoblarni OpenAI bilan professional qilish"""
-    if not USE_OPENAI or not openai_client:
-        return answers
-
-    # Pro paket uchun kuchliroq model
-    model = "gpt-4" if package == "pro" else "gpt-3.5-turbo"
-
-    try:
-        enhanced_answers = []
-        prompts = [
-            f"Make this founder name more professional (keep it short): {answers[0]}",
-            f"Create a catchy and professional project name based on: {answers[1]}",
-            f"Transform this project description into a compelling elevator pitch (2-3 sentences max): {answers[2]}",
-            f"Rewrite this problem statement to make it more urgent and clear for investors (3-4 bullet points): {answers[3]}",
-            f"Transform this solution into clear value propositions (3-4 bullet points): {answers[4]}",
-            f"Define this target audience with specific demographics and market size: {answers[5]}",
-            f"Create a clear revenue model explanation with potential revenue streams: {answers[6]}",
-            f"Analyze these competitors and create a competitive landscape overview: {answers[7]}",
-            f"Transform these advantages into unique selling propositions (USPs): {answers[8]}",
-            f"Create realistic financial projections with key metrics for next year: {answers[9]}"
-        ]
-
-        for i, prompt in enumerate(prompts):
-            if i < len(answers):
-                response = await asyncio.to_thread(
-                    lambda: openai_client.chat.completions.create(
-                        model=model,
-                        messages=[
-                            {"role": "system",
-                             "content": "You are a professional pitch deck consultant. Keep responses concise and impactful."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        max_tokens=200,
-                        temperature=0.7
-                    )
-                )
-                enhanced_answers.append(response.choices[0].message.content.strip())
-            else:
-                enhanced_answers.append(answers[i] if i < len(answers) else "")
-
-        return enhanced_answers
-
-    except Exception as e:
-        logger.error(f"OpenAI enhancement failed: {e}")
-        return answers
-
-
+# ==================== YANGILANGAN AI FUNKSIYALAR - O'ZBEK TILIDA ====================
 async def create_professional_pitch_content(answers: List[str], package: str) -> Dict:
-    """AI bilan to'liq pitch content yaratish"""
+    """AI bilan O'ZBEK TILIDA professional pitch content yaratish"""
 
     if not USE_OPENAI or not openai_client:
         return {
-            'project_name': answers[1] if len(answers) > 1 else "Startup",
-            'author': answers[0] if len(answers) > 0 else "Entrepreneur",
-            'tagline': answers[2][:100] if len(answers) > 2 else "Innovative Solution",
+            'project_name': answers[1] if len(answers) > 1 else "Loyiha",
+            'author': answers[0] if len(answers) > 0 else "Tadbirkor",
+            'tagline': answers[2][:100] if len(answers) > 2 else "Innovatsion yechim",
+            'problem_title': "MUAMMO",
             'problem': answers[3] if len(answers) > 3 else "",
+            'solution_title': "YECHIM",
             'solution': answers[4] if len(answers) > 4 else "",
+            'market_title': "BOZOR",
             'market': answers[5] if len(answers) > 5 else "",
+            'business_title': "BIZNES MODEL",
             'business_model': answers[6] if len(answers) > 6 else "",
+            'competition_title': "RAQOBAT",
             'competition': answers[7] if len(answers) > 7 else "",
+            'advantage_title': "USTUNLIKLAR",
             'advantage': answers[8] if len(answers) > 8 else "",
+            'financials_title': "MOLIYAVIY KO'RSATKICHLAR",
             'financials': answers[9] if len(answers) > 9 else "",
-            'cta': "Let's build the future together! 🚀",
+            'cta': "Keling, birgalikda kelajakni quramiz! 🚀",
         }
 
     model = "gpt-4" if package == "pro" else "gpt-3.5-turbo"
 
     prompt = f"""
-Create a professional investor pitch based on these startup details. 
-Make it compelling, data-driven, and investor-ready.
+Siz professional investitsiya prezentatsiyalari mutaxassisisiz. Quyidagi startup ma'lumotlari asosida O'ZBEK TILIDA professional va ta'sirchan pitch deck content yarating.
 
-Founder: {answers[0] if len(answers) > 0 else ""}
-Project: {answers[1] if len(answers) > 1 else ""}
-Description: {answers[2] if len(answers) > 2 else ""}
-Problem: {answers[3] if len(answers) > 3 else ""}
-Solution: {answers[4] if len(answers) > 4 else ""}
-Target Market: {answers[5] if len(answers) > 5 else ""}
-Business Model: {answers[6] if len(answers) > 6 else ""}
-Competition: {answers[7] if len(answers) > 7 else ""}
-Our Advantage: {answers[8] if len(answers) > 8 else ""}
-Financial Forecast: {answers[9] if len(answers) > 9 else ""}
+MUHIM: Barcha javoblar faqat O'ZBEK TILIDA bo'lishi kerak!
 
-Return a JSON object with these exact keys:
+Asoschi: {answers[0] if len(answers) > 0 else ""}
+Loyiha: {answers[1] if len(answers) > 1 else ""}
+Tavsif: {answers[2] if len(answers) > 2 else ""}
+Muammo: {answers[3] if len(answers) > 3 else ""}
+Yechim: {answers[4] if len(answers) > 4 else ""}
+Maqsadli bozor: {answers[5] if len(answers) > 5 else ""}
+Biznes model: {answers[6] if len(answers) > 6 else ""}
+Raqobat: {answers[7] if len(answers) > 7 else ""}
+Ustunliklar: {answers[8] if len(answers) > 8 else ""}
+Moliyaviy prognoz: {answers[9] if len(answers) > 9 else ""}
+
+JSON formatida O'ZBEK TILIDA qaytaring:
 {{
-  "project_name": "compelling project name",
-  "author": "founder name",
-  "tagline": "powerful tagline (max 10 words)",
-  "problem": "3-4 bullet points about the problem",
-  "solution": "3-4 bullet points about the solution",
-  "market": "target market analysis with TAM/SAM/SOM",
-  "business_model": "revenue streams and pricing strategy",
-  "competition": "competitive analysis",
-  "advantage": "3 key differentiators",
-  "financials": "key metrics and projections",
-  "cta": "powerful call to action"
+  "project_name": "ta'sirchan loyiha nomi (o'zbek tilida)",
+  "author": "asoschi ismi",
+  "tagline": "kuchli shior (maksimum 8 so'z, o'zbek tilida)",
+  "problem_title": "MUAMMO",
+  "problem": "• Birinchi muammo (batafsil)\n• Ikkinchi muammo (batafsil)\n• Uchinchi muammo (batafsil)\n• To'rtinchi muammo (agar kerak bo'lsa)",
+  "solution_title": "BIZNING YECHIMIMIZ",
+  "solution": "• Birinchi yechim komponenti (batafsil)\n• Ikkinchi yechim komponenti (batafsil)\n• Uchinchi yechim komponenti (batafsil)\n• To'rtinchi komponent (agar mavjud bo'lsa)",
+  "market_title": "MAQSADLI BOZOR",
+  "market": "• Umumiy bozor hajmi: [TAM raqamlar bilan]\n• Mavjud bozor: [SAM raqamlar bilan]\n• Erishish mumkin bo'lgan bozor: [SOM raqamlar bilan]\n• Asosiy mijozlar segmenti: [batafsil tavsif]",
+  "business_title": "BIZNES MODELI",
+  "business_model": "• Asosiy daromad manbai: [batafsil]\n• Narxlash strategiyasi: [batafsil]\n• Sotish kanallari: [batafsil]\n• O'rtacha tranzaksiya hajmi: [raqamlar bilan]",
+  "competition_title": "RAQOBATCHILAR TAHLILI",
+  "competition": "• Asosiy raqobatchi: [nom va tavsif]\n• Ikkinchi raqobatchi: [nom va tavsif]\n• Bozordagi bo'shliqlar: [imkoniyatlar]\n• Bizning pozitsiyamiz: [strategiya]",
+  "advantage_title": "RAQOBATDOSH USTUNLIKLAR",
+  "advantage": "⭐ Birinchi ustunlik: [batafsil tushuntirish]\n⭐ Ikkinchi ustunlik: [batafsil tushuntirish]\n⭐ Uchinchi ustunlik: [batafsil tushuntirish]",
+  "financials_title": "MOLIYAVIY PROGNOZLAR",
+  "financials": "📊 1-chorak: [prognoz]\n📊 2-chorak: [prognoz]\n📊 3-chorak: [prognoz]\n📊 Yil yakuni: [umumiy ko'rsatkichlar]\n💰 Zarur investitsiya: [summa]\n📈 ROI: [foiz]",
+  "cta": "Keling, O'zbekiston bozorida inqilob qilamiz! 🚀"
 }}
 
-Make it professional and investor-ready. Use bullet points where indicated.
+HAR BIR BO'LIM KAMIDA 3-4 TA MUHIM PUNKT BILAN TO'LIQ VA BATAFSIL BO'LISHI KERAK!
+BARCHA MATN O'ZBEK TILIDA!
 """
 
     try:
@@ -389,11 +357,13 @@ Make it professional and investor-ready. Use bullet points where indicated.
             lambda: openai_client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system",
-                     "content": "You are a top-tier pitch deck consultant. Create compelling, professional content."},
+                    {
+                        "role": "system",
+                        "content": "Siz O'zbekistonda ishlaydigan professional pitch deck mutaxassisisiz. Faqat o'zbek tilida javob bering. Har bir javob to'liq va batafsil bo'lishi kerak."
+                    },
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=1500,
+                max_tokens=2000,  # Ko'proq token
                 temperature=0.7,
                 response_format={"type": "json_object"}
             )
@@ -404,25 +374,32 @@ Make it professional and investor-ready. Use bullet points where indicated.
 
     except Exception as e:
         logger.error(f"AI content creation failed: {e}")
-        # Fallback
+        # Fallback - o'zbek tilida
         return {
-            'project_name': answers[1] if len(answers) > 1 else "Startup",
-            'author': answers[0] if len(answers) > 0 else "Entrepreneur",
-            'tagline': answers[2][:100] if len(answers) > 2 else "Innovative Solution",
-            'problem': answers[3] if len(answers) > 3 else "",
-            'solution': answers[4] if len(answers) > 4 else "",
-            'market': answers[5] if len(answers) > 5 else "",
-            'business_model': answers[6] if len(answers) > 6 else "",
-            'competition': answers[7] if len(answers) > 7 else "",
-            'advantage': answers[8] if len(answers) > 8 else "",
-            'financials': answers[9] if len(answers) > 9 else "",
-            'cta': "Let's build the future together! 🚀",
+            'project_name': answers[1] if len(answers) > 1 else "Innovatsion Loyiha",
+            'author': answers[0] if len(answers) > 0 else "Tadbirkor",
+            'tagline': "Kelajakni birgalikda quramiz",
+            'problem_title': "MUAMMO",
+            'problem': answers[3] if len(answers) > 3 else "Bozordagi asosiy muammolar",
+            'solution_title': "YECHIM",
+            'solution': answers[4] if len(answers) > 4 else "Bizning innovatsion yechimimiz",
+            'market_title': "BOZOR",
+            'market': answers[5] if len(answers) > 5 else "Maqsadli auditoriya tahlili",
+            'business_title': "BIZNES MODEL",
+            'business_model': answers[6] if len(answers) > 6 else "Daromad modeli",
+            'competition_title': "RAQOBAT",
+            'competition': answers[7] if len(answers) > 7 else "Raqobat muhiti",
+            'advantage_title': "USTUNLIKLAR",
+            'advantage': answers[8] if len(answers) > 8 else "Bizning ustunliklarimiz",
+            'financials_title': "MOLIYA",
+            'financials': answers[9] if len(answers) > 9 else "Moliyaviy prognozlar",
+            'cta': "Keling, birgalikda muvaffaqiyatga erishamiz! 🚀",
         }
 
 
-# ==================== YANGILANGAN PPTX YARATISH ====================
+# ==================== MUKAMMAL PPTX YARATISH - YANGILANGAN DIZAYN ====================
 async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: str) -> str:
-    """Mukammal PPTX yaratish - AI optimized"""
+    """Professional PPTX yaratish - O'zbek tilida, chiroyli dizayn"""
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
@@ -437,313 +414,474 @@ async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: 
     prs.slide_width = Inches(10)
     prs.slide_height = Inches(7.5)
 
-    # Professional ranglar
+    # Professional ranglar palitrasi
     COLORS = {
-        'primary': RGBColor(46, 64, 83),  # Dark blue-gray
-        'secondary': RGBColor(52, 152, 219),  # Bright blue
-        'accent': RGBColor(46, 204, 113),  # Green
-        'danger': RGBColor(231, 76, 60),  # Red
-        'warning': RGBColor(243, 156, 18),  # Orange
-        'dark': RGBColor(44, 62, 80),  # Dark
-        'light': RGBColor(236, 240, 241),  # Light gray
-        'white': RGBColor(255, 255, 255)  # White
+        'primary': RGBColor(25, 42, 86),  # To'q ko'k
+        'secondary': RGBColor(41, 128, 185),  # Och ko'k
+        'accent': RGBColor(39, 174, 96),  # Yashil
+        'danger': RGBColor(192, 57, 43),  # Qizil
+        'warning': RGBColor(243, 156, 18),  # Sariq
+        'purple': RGBColor(142, 68, 173),  # Binafsha
+        'dark': RGBColor(44, 62, 80),  # To'q
+        'light': RGBColor(236, 240, 241),  # Och kulrang
+        'white': RGBColor(255, 255, 255),  # Oq
+        'gray': RGBColor(149, 165, 166)  # Kulrang
     }
 
     def add_gradient_background(slide, color1, color2):
         """Gradient fon qo'shish"""
         fill = slide.background.fill
         fill.gradient()
-        fill.gradient_angle = 135
+        fill.gradient_angle = 45
         stops = fill.gradient_stops
         stops[0].color.rgb = color1
         stops[0].position = 0.0
         stops[1].color.rgb = color2
         stops[1].position = 1.0
 
-    # ==================== 1. TITLE SLIDE ====================
+    def add_decorative_shape(slide, shape_type, x, y, width, height, color, transparency=0.3):
+        """Dekorativ shakl qo'shish"""
+        shape = slide.shapes.add_shape(shape_type, Inches(x), Inches(y), Inches(width), Inches(height))
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = color
+        shape.fill.transparency = transparency
+        shape.line.fill.background()
+        return shape
+
+    # ==================== 1. BOSH SAHIFA ====================
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    add_gradient_background(slide, COLORS['primary'], COLORS['secondary'])
+    add_gradient_background(slide, COLORS['primary'], COLORS['purple'])
 
-    # Decorative shape
-    shape = slide.shapes.add_shape(
-        MSO_SHAPE.HEXAGON,
-        Inches(7.5), Inches(0.5),
-        Inches(2), Inches(2)
+    # Dekorativ elementlar
+    add_decorative_shape(slide, MSO_SHAPE.HEXAGON, 7.5, 0.3, 2.5, 2.5, COLORS['accent'], 0.4)
+    add_decorative_shape(slide, MSO_SHAPE.OVAL, -0.5, 5, 2, 2, COLORS['warning'], 0.5)
+
+    # Logo joyi (agar kerak bo'lsa)
+    logo_placeholder = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        Inches(0.5), Inches(0.5),
+        Inches(1.5), Inches(1.5)
     )
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = COLORS['accent']
-    shape.fill.transparency = 0.7
-    shape.line.fill.background()
+    logo_placeholder.fill.solid()
+    logo_placeholder.fill.fore_color.rgb = COLORS['white']
+    logo_placeholder.fill.transparency = 0.9
+    logo_placeholder.line.fill.background()
 
-    # Title
-    title_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(1.5))
+    # Loyiha nomi
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(9), Inches(1.5))
     tf = title_box.text_frame
     tf.text = content['project_name'].upper()
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
-    p.font.name = "Arial Black"
-    p.font.size = Pt(48)
+    p.font.name = "Calibri"
+    p.font.size = Pt(54)
     p.font.color.rgb = COLORS['white']
     p.font.bold = True
 
-    # Tagline
-    tagline_box = slide.shapes.add_textbox(Inches(1.5), Inches(3.8), Inches(7), Inches(0.8))
+    # Shior
+    tagline_box = slide.shapes.add_textbox(Inches(1), Inches(4.2), Inches(8), Inches(0.8))
     tf = tagline_box.text_frame
     tf.text = content['tagline']
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
-    p.font.size = Pt(24)
+    p.font.name = "Calibri Light"
+    p.font.size = Pt(28)
     p.font.color.rgb = COLORS['light']
     p.font.italic = True
 
-    # Author
-    author_box = slide.shapes.add_textbox(Inches(1), Inches(6), Inches(8), Inches(0.5))
+    # Taqdimotchi
+    author_box = slide.shapes.add_textbox(Inches(1), Inches(6.2), Inches(8), Inches(0.5))
     tf = author_box.text_frame
-    tf.text = f"Presented by {content['author']}"
+    tf.text = f"Taqdim etmoqda: {content['author']}"
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
-    p.font.size = Pt(18)
+    p.font.name = "Calibri"
+    p.font.size = Pt(20)
     p.font.color.rgb = COLORS['light']
 
-    # ==================== 2. PROBLEM SLIDE ====================
+    # ==================== 2. MUAMMO SLAYDI ====================
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = COLORS['white']
 
-    # Header bar
+    # Yuqori rang chizig'i
     header = slide.shapes.add_shape(
         MSO_SHAPE.RECTANGLE,
         Inches(0), Inches(0),
-        Inches(10), Inches(1.2)
+        Inches(10), Inches(1.3)
     )
     header.fill.solid()
     header.fill.fore_color.rgb = COLORS['danger']
     header.line.fill.background()
 
-    # Title
-    title_box = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(8), Inches(0.7))
+    # Sarlavha
+    title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
     tf = title_box.text_frame
-    tf.text = "🔥 THE PROBLEM"
+    tf.text = f"🔥 {content.get('problem_title', 'MUAMMO')}"
     p = tf.paragraphs[0]
-    p.font.size = Pt(36)
+    p.font.name = "Calibri"
+    p.font.size = Pt(38)
     p.font.color.rgb = COLORS['white']
     p.font.bold = True
 
-    # Problem content
-    content_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4.5))
-    tf = content_box.text_frame
-    tf.text = content['problem']
-    tf.word_wrap = True
-    for p in tf.paragraphs:
-        p.font.size = Pt(20)
-        p.font.color.rgb = COLORS['dark']
-        p.space_before = Pt(12)
-        p.space_after = Pt(12)
+    # Asosiy kontent uchun oq fon
+    content_bg = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        Inches(0.5), Inches(1.8),
+        Inches(9), Inches(5)
+    )
+    content_bg.fill.solid()
+    content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
+    content_bg.line.color.rgb = COLORS['light']
+    content_bg.line.width = Pt(1)
 
-    # ==================== 3. SOLUTION SLIDE ====================
+    # Muammo matni
+    content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
+    tf = content_box.text_frame
+    tf.text = content.get('problem', '')
+    tf.word_wrap = True
+
+    for p in tf.paragraphs:
+        p.font.name = "Calibri"
+        p.font.size = Pt(18)
+        p.font.color.rgb = COLORS['dark']
+        p.space_before = Pt(10)
+        p.space_after = Pt(10)
+        p.level = 0
+
+    # ==================== 3. YECHIM SLAYDI ====================
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = COLORS['white']
 
-    # Header bar
+    # Yuqori rang chizig'i
     header = slide.shapes.add_shape(
         MSO_SHAPE.RECTANGLE,
         Inches(0), Inches(0),
-        Inches(10), Inches(1.2)
+        Inches(10), Inches(1.3)
     )
     header.fill.solid()
     header.fill.fore_color.rgb = COLORS['accent']
     header.line.fill.background()
 
-    # Title
-    title_box = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(8), Inches(0.7))
+    # Sarlavha
+    title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
     tf = title_box.text_frame
-    tf.text = "💡 OUR SOLUTION"
+    tf.text = f"💡 {content.get('solution_title', 'YECHIM')}"
     p = tf.paragraphs[0]
-    p.font.size = Pt(36)
+    p.font.name = "Calibri"
+    p.font.size = Pt(38)
     p.font.color.rgb = COLORS['white']
     p.font.bold = True
 
-    # Solution content
-    content_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4.5))
-    tf = content_box.text_frame
-    tf.text = content['solution']
-    tf.word_wrap = True
-    for p in tf.paragraphs:
-        p.font.size = Pt(20)
-        p.font.color.rgb = COLORS['dark']
-        p.space_before = Pt(12)
-        p.space_after = Pt(12)
+    # Kontent foni
+    content_bg = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE,
+        Inches(0.5), Inches(1.8),
+        Inches(9), Inches(5)
+    )
+    content_bg.fill.solid()
+    content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
+    content_bg.line.color.rgb = COLORS['light']
+    content_bg.line.width = Pt(1)
 
-    # ==================== 4. MARKET SLIDE ====================
+    # Yechim matni
+    content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
+    tf = content_box.text_frame
+    tf.text = content.get('solution', '')
+    tf.word_wrap = True
+
+    for p in tf.paragraphs:
+        p.font.name = "Calibri"
+        p.font.size = Pt(18)
+        p.font.color.rgb = COLORS['dark']
+        p.space_before = Pt(10)
+        p.space_after = Pt(10)
+
+    # ==================== 4. BOZOR SLAYDI ====================
     if content.get('market'):
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = COLORS['white']
 
-        # Header
+        # Gradient header
         header = slide.shapes.add_shape(
             MSO_SHAPE.RECTANGLE,
             Inches(0), Inches(0),
-            Inches(10), Inches(1.2)
+            Inches(10), Inches(1.3)
         )
         header.fill.solid()
         header.fill.fore_color.rgb = COLORS['secondary']
         header.line.fill.background()
 
-        # Title
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(8), Inches(0.7))
+        # Sarlavha
+        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
         tf = title_box.text_frame
-        tf.text = "🎯 TARGET MARKET"
+        tf.text = f"🎯 {content.get('market_title', 'MAQSADLI BOZOR')}"
         p = tf.paragraphs[0]
-        p.font.size = Pt(36)
+        p.font.name = "Calibri"
+        p.font.size = Pt(38)
         p.font.color.rgb = COLORS['white']
         p.font.bold = True
 
-        # Market content
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4.5))
-        tf = content_box.text_frame
-        tf.text = content['market']
-        tf.word_wrap = True
-        for p in tf.paragraphs:
-            p.font.size = Pt(20)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(12)
+        # Kontent
+        content_bg = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE,
+            Inches(0.5), Inches(1.8),
+            Inches(9), Inches(5)
+        )
+        content_bg.fill.solid()
+        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
+        content_bg.line.color.rgb = COLORS['light']
 
-    # ==================== 5. BUSINESS MODEL ====================
+        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
+        tf = content_box.text_frame
+        tf.text = content.get('market', '')
+        tf.word_wrap = True
+
+        for p in tf.paragraphs:
+            p.font.name = "Calibri"
+            p.font.size = Pt(18)
+            p.font.color.rgb = COLORS['dark']
+            p.space_before = Pt(10)
+
+    # ==================== 5. BIZNES MODEL ====================
     if content.get('business_model'):
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = COLORS['white']
 
-        # Header
         header = slide.shapes.add_shape(
             MSO_SHAPE.RECTANGLE,
             Inches(0), Inches(0),
-            Inches(10), Inches(1.2)
+            Inches(10), Inches(1.3)
         )
         header.fill.solid()
         header.fill.fore_color.rgb = COLORS['warning']
         header.line.fill.background()
 
-        # Title
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(8), Inches(0.7))
+        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
         tf = title_box.text_frame
-        tf.text = "💼 BUSINESS MODEL"
+        tf.text = f"💼 {content.get('business_title', 'BIZNES MODEL')}"
         p = tf.paragraphs[0]
-        p.font.size = Pt(36)
+        p.font.name = "Calibri"
+        p.font.size = Pt(38)
         p.font.color.rgb = COLORS['white']
         p.font.bold = True
 
-        # Business model content
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4.5))
-        tf = content_box.text_frame
-        tf.text = content['business_model']
-        tf.word_wrap = True
-        for p in tf.paragraphs:
-            p.font.size = Pt(20)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(12)
+        content_bg = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE,
+            Inches(0.5), Inches(1.8),
+            Inches(9), Inches(5)
+        )
+        content_bg.fill.solid()
+        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
+        content_bg.line.color.rgb = COLORS['light']
 
-    # ==================== 6. COMPETITIVE ADVANTAGE ====================
+        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
+        tf = content_box.text_frame
+        tf.text = content.get('business_model', '')
+        tf.word_wrap = True
+
+        for p in tf.paragraphs:
+            p.font.name = "Calibri"
+            p.font.size = Pt(18)
+            p.font.color.rgb = COLORS['dark']
+            p.space_before = Pt(10)
+
+    # ==================== 6. RAQOBAT ====================
+    if content.get('competition'):
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = COLORS['white']
+
+        header = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            Inches(0), Inches(0),
+            Inches(10), Inches(1.3)
+        )
+        header.fill.solid()
+        header.fill.fore_color.rgb = COLORS['purple']
+        header.line.fill.background()
+
+        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
+        tf = title_box.text_frame
+        tf.text = f"🏆 {content.get('competition_title', 'RAQOBAT')}"
+        p = tf.paragraphs[0]
+        p.font.name = "Calibri"
+        p.font.size = Pt(38)
+        p.font.color.rgb = COLORS['white']
+        p.font.bold = True
+
+        content_bg = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE,
+            Inches(0.5), Inches(1.8),
+            Inches(9), Inches(5)
+        )
+        content_bg.fill.solid()
+        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
+        content_bg.line.color.rgb = COLORS['light']
+
+        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
+        tf = content_box.text_frame
+        tf.text = content.get('competition', '')
+        tf.word_wrap = True
+
+        for p in tf.paragraphs:
+            p.font.name = "Calibri"
+            p.font.size = Pt(18)
+            p.font.color.rgb = COLORS['dark']
+            p.space_before = Pt(10)
+
+    # ==================== 7. USTUNLIKLAR ====================
     if content.get('advantage'):
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = COLORS['white']
 
-        # Header
         header = slide.shapes.add_shape(
             MSO_SHAPE.RECTANGLE,
             Inches(0), Inches(0),
-            Inches(10), Inches(1.2)
+            Inches(10), Inches(1.3)
         )
         header.fill.solid()
         header.fill.fore_color.rgb = COLORS['primary']
         header.line.fill.background()
 
-        # Title
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(8), Inches(0.7))
+        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
         tf = title_box.text_frame
-        tf.text = "⭐ COMPETITIVE ADVANTAGE"
+        tf.text = f"⭐ {content.get('advantage_title', 'USTUNLIKLAR')}"
         p = tf.paragraphs[0]
-        p.font.size = Pt(36)
+        p.font.name = "Calibri"
+        p.font.size = Pt(38)
         p.font.color.rgb = COLORS['white']
         p.font.bold = True
 
-        # Advantages
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4.5))
-        tf = content_box.text_frame
-        tf.text = content['advantage']
-        tf.word_wrap = True
-        for p in tf.paragraphs:
-            p.font.size = Pt(20)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(12)
+        content_bg = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE,
+            Inches(0.5), Inches(1.8),
+            Inches(9), Inches(5)
+        )
+        content_bg.fill.solid()
+        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
+        content_bg.line.color.rgb = COLORS['light']
 
-    # ==================== 7. FINANCIALS ====================
+        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
+        tf = content_box.text_frame
+        tf.text = content.get('advantage', '')
+        tf.word_wrap = True
+
+        for p in tf.paragraphs:
+            p.font.name = "Calibri"
+            p.font.size = Pt(18)
+            p.font.color.rgb = COLORS['dark']
+            p.space_before = Pt(10)
+
+    # ==================== 8. MOLIYAVIY KO'RSATKICHLAR ====================
     if content.get('financials'):
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = COLORS['white']
 
-        # Header
         header = slide.shapes.add_shape(
             MSO_SHAPE.RECTANGLE,
             Inches(0), Inches(0),
-            Inches(10), Inches(1.2)
+            Inches(10), Inches(1.3)
         )
         header.fill.solid()
         header.fill.fore_color.rgb = COLORS['secondary']
         header.line.fill.background()
 
-        # Title
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.3), Inches(8), Inches(0.7))
+        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
         tf = title_box.text_frame
-        tf.text = "📈 FINANCIAL PROJECTIONS"
+        tf.text = f"📈 {content.get('financials_title', 'MOLIYAVIY PROGNOZ')}"
         p = tf.paragraphs[0]
-        p.font.size = Pt(36)
+        p.font.name = "Calibri"
+        p.font.size = Pt(38)
         p.font.color.rgb = COLORS['white']
         p.font.bold = True
 
-        # Financial content
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(4.5))
-        tf = content_box.text_frame
-        tf.text = content['financials']
-        tf.word_wrap = True
-        for p in tf.paragraphs:
-            p.font.size = Pt(20)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(12)
+        content_bg = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE,
+            Inches(0.5), Inches(1.8),
+            Inches(9), Inches(5)
+        )
+        content_bg.fill.solid()
+        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
+        content_bg.line.color.rgb = COLORS['light']
 
-    # ==================== 8. CALL TO ACTION ====================
-    # F-STRING MUAMMOSINI HAL QILISH
+        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
+        tf = content_box.text_frame
+        tf.text = content.get('financials', '')
+        tf.word_wrap = True
+
+        for p in tf.paragraphs:
+            p.font.name = "Calibri"
+            p.font.size = Pt(18)
+            p.font.color.rgb = COLORS['dark']
+            p.space_before = Pt(10)
+
+    # ==================== 9. YAKUN / HARAKATGA CHAQIRIQ ====================
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_gradient_background(slide, COLORS['accent'], COLORS['secondary'])
 
-    # CTA box
-    cta_box = slide.shapes.add_textbox(Inches(1.5), Inches(2), Inches(7), Inches(3.5))
+    # Dekorativ elementlar
+    add_decorative_shape(slide, MSO_SHAPE.HEXAGON, 8, 0.5, 2, 2, COLORS['white'], 0.2)
+    add_decorative_shape(slide, MSO_SHAPE.OVAL, -0.5, 5.5, 1.8, 1.8, COLORS['warning'], 0.3)
+
+    # Asosiy kontent
+    cta_box = slide.shapes.add_textbox(Inches(1), Inches(1.5), Inches(8), Inches(4.5))
     tf = cta_box.text_frame
 
-    # F-string ichida \n ishlatmasdan text yaratish
-    cta_title = "🚀 LET'S BUILD THE FUTURE"
-    cta_text = content['cta']
-    contact_text = f"Contact: {content['author']}"
-    project_text = f"Project: {content['project_name']}"
+    # Sarlavha
+    p = tf.add_paragraph()
+    p.text = "🚀 KELAJAKNI BIRGALIKDA QURAMIZ!"
+    p.font.name = "Calibri"
+    p.font.size = Pt(36)
+    p.font.color.rgb = COLORS['white']
+    p.font.bold = True
+    p.alignment = PP_ALIGN.CENTER
 
-    # Text qo'shish
-    tf.text = cta_title + "\n\n"
-    tf.text += cta_text + "\n\n"
-    tf.text += contact_text + "\n"
-    tf.text += project_text
+    # Bo'sh qator
+    tf.add_paragraph()
 
-    for p in tf.paragraphs:
-        p.alignment = PP_ALIGN.CENTER
-        p.font.size = Pt(26)
-        p.font.color.rgb = COLORS['white']
-        p.font.bold = True
-        p.space_after = Pt(20)
+    # CTA matni
+    p = tf.add_paragraph()
+    p.text = content.get('cta', "Keling, O'zbekiston bozorida yangi sahifa ochamiz!")
+    p.font.name = "Calibri Light"
+    p.font.size = Pt(24)
+    p.font.color.rgb = COLORS['light']
+    p.alignment = PP_ALIGN.CENTER
 
-    # Save file
+    # Bo'sh qator
+    tf.add_paragraph()
+    tf.add_paragraph()
+
+    # Kontakt ma'lumotlari
+    p = tf.add_paragraph()
+    p.text = f"📧 Bog'lanish: {content['author']}"
+    p.font.name = "Calibri"
+    p.font.size = Pt(20)
+    p.font.color.rgb = COLORS['white']
+    p.alignment = PP_ALIGN.CENTER
+
+    p = tf.add_paragraph()
+    p.text = f"💼 Loyiha: {content['project_name']}"
+    p.font.name = "Calibri"
+    p.font.size = Pt(20)
+    p.font.color.rgb = COLORS['white']
+    p.alignment = PP_ALIGN.CENTER
+
+    # Rahmat so'zi
+    p = tf.add_paragraph()
+    p.text = "E'tiboringiz uchun rahmat!"
+    p.font.name = "Calibri"
+    p.font.size = Pt(18)
+    p.font.color.rgb = COLORS['light']
+    p.font.italic = True
+    p.alignment = PP_ALIGN.CENTER
+
+    # Faylni saqlash
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"pitch_{package}_{user_id}_{timestamp}.pptx"
     prs.save(filename)
@@ -752,7 +890,10 @@ async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: 
     return filename
 
 
-# ==================== START CALLBACK HANDLERS ====================
+# ==================== QOLGAN KODLAR O'ZGARMAYDI ====================
+# [Qolgan barcha handler'lar va funksiyalar yuqoridagi koddan olinadi]
+
+# START HANDLERS
 @dp.callback_query_handler(lambda c: c.data == "start_yes", state='*')
 async def start_yes_handler(call: types.CallbackQuery, state: FSMContext):
     """Boshlash tugmasi bosilganda"""
@@ -760,11 +901,8 @@ async def start_yes_handler(call: types.CallbackQuery, state: FSMContext):
     await call.answer("Boshlaymiz! ✅")
 
     user_id = call.from_user.id
-
-    # State ga birinchi savol index ni saqlash
     await state.update_data(current_question=0, answers=[])
 
-    # Birinchi savolni berish
     text = (
         "📋 Ajoyib! Endi sizga 10 ta savol beraman.\n"
         "Har biriga javob bering.\n\n"
@@ -784,7 +922,7 @@ async def start_no_handler(call: types.CallbackQuery):
     await call.message.edit_text(text)
 
 
-# ==================== MESSAGE HANDLER: Javoblarni qabul qilish ====================
+# MESSAGE HANDLER
 @dp.message_handler(state=PitchStates.waiting_for_answer)
 async def answer_handler(message: types.Message, state: FSMContext):
     """Javoblarni ketma-ket qabul qilish"""
@@ -794,36 +932,28 @@ async def answer_handler(message: types.Message, state: FSMContext):
     current_q = user_data.get('current_question', 0)
     answers = user_data.get('answers', [])
 
-    # Javobni saqlash
     answers.append(message.text.strip())
     logger.info(f"User {user_id} answered question {current_q + 1}/{len(QUESTIONS)}")
 
-    # Keyingi savol
     next_q = current_q + 1
 
     if next_q < len(QUESTIONS):
-        # Yana savol bor
         await state.update_data(current_question=next_q, answers=answers)
-
         progress = f"✅ {next_q}/{len(QUESTIONS)} savol javoblandi\n\n"
         text = progress + QUESTIONS[next_q]
-
         await message.answer(text, reply_markup=cancel_keyboard())
     else:
-        # Barcha savollar tugadi - paket tanlash
         await state.update_data(answers=answers)
-
         summary = (
             f"🎉 Barcha savollar tugadi!\n\n"
             f"📊 Jami {len(answers)} ta javob qabul qilindi.\n\n"
             f"Endi paketni tanlang:"
         )
-
         await message.answer(summary, reply_markup=package_keyboard())
         await PitchStates.choosing_package.set()
 
 
-# ==================== PAKET TANLASH ====================
+# PACKAGE HANDLER
 @dp.callback_query_handler(lambda c: c.data.startswith("package_"), state=PitchStates.choosing_package)
 async def package_select_handler(call: types.CallbackQuery, state: FSMContext):
     """Paket tanlash"""
@@ -837,14 +967,12 @@ async def package_select_handler(call: types.CallbackQuery, state: FSMContext):
     package = "simple" if call.data == "package_simple" else "pro"
     amount = 10000 if package == "simple" else 20000
 
-    # Buyurtma yaratish
     order_id = db.create_order(user_id, answers, package)
     logger.info(f"Order {order_id} created for user {user_id}")
 
     package_name = 'Oddiy' if package == 'simple' else 'Professional'
     formatted_amount = f"{amount:,}"
 
-    # Karta ma'lumotlarini ko'rsatish
     payment_text = (
         f"✅ {package_name} paket tanlandi\n\n"
         f"💰 Narx: {formatted_amount} {CURRENCY}\n\n"
@@ -855,14 +983,14 @@ async def package_select_handler(call: types.CallbackQuery, state: FSMContext):
         f"Summa: <b>{formatted_amount} {CURRENCY}</b>\n\n"
         f"📸 To'lov qilgandan keyin chekni (skrinshot yoki PDF)\n"
         f"bu chatga yuboring.\n\n"
-        f"⏳ Admin tasdiqlagach PPTX fayli yuboriladi."
+        f"⏳ Admin tasdiqlagach professional PPTX fayli yuboriladi."
     )
 
     await call.message.edit_text(payment_text, parse_mode="HTML", reply_markup=cancel_keyboard())
     await PitchStates.waiting_for_receipt.set()
 
 
-# ==================== CHEK YUKLASH ====================
+# RECEIPT HANDLER
 @dp.message_handler(content_types=[ContentType.PHOTO, ContentType.DOCUMENT], state=PitchStates.waiting_for_receipt)
 async def receipt_handler(message: types.Message, state: FSMContext):
     """To'lov chekini qabul qilish"""
@@ -873,13 +1001,11 @@ async def receipt_handler(message: types.Message, state: FSMContext):
         await message.reply("❌ Buyurtma topilmadi. Iltimos /start dan boshlang.")
         return
 
-    # File validatsiya
     is_valid, error_msg, file_id = await validate_file(message)
     if not is_valid:
         await message.reply(f"❌ {error_msg}")
         return
 
-    # Orderga chek file_id ni saqlash
     db.update_order(user_id, receipt_file_id=file_id, status="receipt_sent")
     logger.info(f"Receipt uploaded by user {user_id}")
 
@@ -890,7 +1016,6 @@ async def receipt_handler(message: types.Message, state: FSMContext):
     username = user.username or 'yoq'
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M')
 
-    # Admin uchun xabar
     info_text = (
         "💳 YANGI TO'LOV CHEKI\n\n"
         "👤 Foydalanuvchi:\n"
@@ -903,7 +1028,6 @@ async def receipt_handler(message: types.Message, state: FSMContext):
         f"📝 Javoblar: {len(order['answers'])} ta"
     )
 
-    # Adminga yuborish
     try:
         if message.content_type == ContentType.PHOTO:
             await bot.send_photo(
@@ -939,7 +1063,7 @@ async def receipt_handler(message: types.Message, state: FSMContext):
         await message.reply(error_text)
 
 
-# ==================== ADMIN ACTIONS ====================
+# ADMIN ACTIONS
 @dp.callback_query_handler(lambda c: c.data.startswith("admin_"), state='*')
 async def admin_action_handler(call: types.CallbackQuery):
     """Admin harakatlari"""
@@ -959,13 +1083,11 @@ async def admin_action_handler(call: types.CallbackQuery):
         await call.message.answer("❌ Buyurtma topilmadi")
         return
 
-    # Ma'lumot ko'rsatish
     if action == "admin_info":
         order_info = format_order_info(order)
         answers_count = len(order['answers'])
         order_id = order['id']
 
-        # Javoblarni ko'rsatish
         answers_text = "\n\n📝 JAVOBLAR:\n"
         for i, ans in enumerate(order['answers'], 1):
             answers_text += f"{i}. {ans[:50]}...\n" if len(ans) > 50 else f"{i}. {ans}\n"
@@ -980,7 +1102,6 @@ async def admin_action_handler(call: types.CallbackQuery):
         await call.message.answer(info)
         return
 
-    # Rad etish
     if action == "admin_reject":
         db.update_order(user_id, status="rejected")
         db.log_admin_action(ADMIN_ID, "reject", user_id)
@@ -1001,7 +1122,6 @@ async def admin_action_handler(call: types.CallbackQuery):
             await call.message.answer(f"❌ Foydalanuvchiga xabar yuborib bo'lmadi: {e}")
         return
 
-    # Tasdiqlash va PPTX yaratish
     if action == "admin_approve":
         db.update_order(user_id, status="approved")
         db.log_admin_action(ADMIN_ID, "approve", user_id)
@@ -1011,22 +1131,21 @@ async def admin_action_handler(call: types.CallbackQuery):
         try:
             answers = order['answers']
 
-            # AI bilan yaxshilash
-            if USE_OPENAI and openai_client:
-                await call.message.answer("🤖 AI javoblarni optimizatsiya qilmoqda...")
-                enhanced_answers = await enhance_answers_with_openai(answers, order['package'])
-            else:
-                enhanced_answers = answers
-
             # Mukammal PPTX yaratish
             await call.message.answer("🎨 Professional prezentatsiya yaratilmoqda...")
-            pptx_path = await create_stunning_pitch_deck(user_id, enhanced_answers, order['package'])
+            pptx_path = await create_stunning_pitch_deck(user_id, answers, order['package'])
 
             # Foydalanuvchiga yuborish
             package_name = 'Oddiy' if order['package'] == 'simple' else 'Professional'
 
             caption = (
                 "🎉 Sizning professional Pitch Deck tayyor!\n\n"
+                f"📦 Paket: {package_name}\n"
+                f"✨ AI optimizatsiyasi: {'✅ Aktiv' if USE_OPENAI else '➖ Ochirilgan'}\n"
+                f"🌐 Til: O'zbek tili\n"
+                f"📄 Slaydlar: 9-12 ta\n\n"
+                "🚀 Investorlarga muvaffaqiyatlar tilaymiz!\n"
+                "💡 Maslahat: Prezentatsiyani ko'rib chiqing va kerak bo'lsa tahrirlang."
             )
 
             with open(pptx_path, "rb") as f:
@@ -1049,14 +1168,13 @@ async def admin_action_handler(call: types.CallbackQuery):
             await call.message.answer(f"❌ Xatolik: {str(e)}")
             db.update_order(user_id, status="error")
 
-            # Foydalanuvchiga xatolik haqida xabar
             await bot.send_message(
                 chat_id=user_id,
                 text="❌ Texnik xatolik yuz berdi. Admin bilan bog'laning: @support"
             )
 
 
-# ==================== CANCEL HANDLER ====================
+# CANCEL HANDLER
 @dp.callback_query_handler(lambda c: c.data == "cancel", state='*')
 async def cancel_callback_handler(call: types.CallbackQuery, state: FSMContext):
     """Bekor qilish callback"""
@@ -1092,11 +1210,10 @@ async def cancel_command_handler(message: types.Message, state: FSMContext):
     await message.answer(text)
 
 
-# ==================== COMMAND HANDLERS ====================
+# COMMAND HANDLERS
 @dp.message_handler(commands=['start'], state='*')
 async def start_handler(message: types.Message, state: FSMContext):
     """Start command"""
-    # Agar jarayon borligini tekshirish
     current_state = await state.get_state()
     if current_state:
         await state.finish()
@@ -1114,6 +1231,8 @@ async def start_handler(message: types.Message, state: FSMContext):
         "3️⃣ Kartaga to'lov qiling\n"
         "4️⃣ Chekni yuboring\n"
         "5️⃣ Professional PPTX oling\n\n"
+        "✨ Barcha prezentatsiyalar O'ZBEK TILIDA!\n"
+        "🤖 AI yordamida optimizatsiya qilinadi!\n\n"
         "Boshlaysizmi?"
     )
     await message.answer(text, reply_markup=start_keyboard())
@@ -1135,7 +1254,6 @@ async def status_handler(message: types.Message):
     order_info = format_order_info(order)
     answers_count = len(order['answers'])
 
-    # Holat asosida qo'shimcha ma'lumot
     status = order['status']
     extra_info = ""
 
@@ -1181,14 +1299,13 @@ async def help_handler(message: types.Message):
     await message.answer(text)
 
 
-# ==================== ADMIN COMMANDS ====================
+# ADMIN COMMANDS
 @dp.message_handler(commands=['admin'], user_id=ADMIN_ID)
 async def admin_panel_handler(message: types.Message):
     """Admin panel"""
     conn = sqlite3.connect('pitch_bot.db')
     cursor = conn.cursor()
 
-    # Statistika
     cursor.execute('SELECT COUNT(*) FROM orders')
     total_orders = cursor.fetchone()[0]
 
@@ -1215,7 +1332,7 @@ async def admin_panel_handler(message: types.Message):
     await message.answer(text)
 
 
-# ==================== NOTO'G'RI XABARLAR ====================
+# ERROR HANDLERS
 @dp.message_handler(state=PitchStates.waiting_for_receipt)
 async def wrong_message_receipt_state(message: types.Message):
     """Receipt kutilayotganda text xabar"""
@@ -1246,7 +1363,6 @@ async def unknown_content_handler(message: types.Message):
     )
 
 
-# ==================== ERROR HANDLER ====================
 @dp.errors_handler()
 async def errors_handler(update, exception):
     """Global error handler"""
@@ -1254,7 +1370,7 @@ async def errors_handler(update, exception):
     return True
 
 
-# ==================== DEBUG ====================
+# DEBUG
 if __name__ == '__main__':
     logger.info("=" * 50)
     logger.info("Bot ishga tushmoqda...")
