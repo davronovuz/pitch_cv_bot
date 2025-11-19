@@ -197,6 +197,8 @@ def start_keyboard():
         InlineKeyboardButton("✅ Boshlash", callback_data="start_yes"),
         InlineKeyboardButton("❌ Keyinroq", callback_data="start_no")
     )
+    kb.add(InlineKeyboardButton("📄 PPTX tavsiya (video)", callback_data="pptx_tips"))
+
     return kb
 
 
@@ -1172,6 +1174,28 @@ async def admin_action_handler(call: types.CallbackQuery):
                 chat_id=user_id,
                 text="❌ Texnik xatolik yuz berdi. Admin bilan bog'laning: @support"
             )
+
+
+@dp.callback_query_handler(lambda c: c.data == "pptx_tips", state='*')
+async def pptx_tips_handler(call: types.CallbackQuery):
+    await call.answer()
+    # 1) Matnli tavsiya (qisqacha)
+    text = (
+        "📌 PPTX tayyorlash bo'yicha tezkor tavsiyalar:\n\n"
+        "1) Har bir slayd uchun bitta asosiy xabar — ortiqcha matn yozmang.\n"
+        "2) Sarlavha va 3-4 ta bullet point bo'lsin.\n"
+        "3) Vizual — diagramma yoki skrinshot qo'shing (masalan: bozor, moliya, yechim).\n"
+        "4) Rang palitrasi bir xil bo'lsin; kontrast va o'qilishi muhim.\n"
+        "5) Yakuniy CTA (aloqa / investor taklifi) bo'lsin.\n\n"
+        "Quyi tugmadan videoni ko'rish yoki /help orqali batafsil ma'lumot oling."
+    )
+    await call.message.answer(text)
+    await call.message.answer("🎬 Video yo'q bo'lsa: iltimos adminga video yuboring yoki fayl_id bilan yangilang.")
+
+
+
+
+
 
 
 # CANCEL HANDLER
