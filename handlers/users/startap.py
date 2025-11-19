@@ -27,7 +27,7 @@ except ImportError:
     OpenAI = None
 
 # ==================== KONFIGURATSIYA ====================
-ADMIN_ID = 1879114908
+ADMIN_ID = 736290914
 USE_OPENAI = True  # Yoqilgan
 
 CURRENCY = "so'm"
@@ -35,8 +35,8 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 
 # Karta ma'lumotlari
-CARD_NUMBER = "8600 1234 5678 9012"
-CARD_HOLDER = "JOHN DOE"
+CARD_NUMBER = "4073420066945407"
+CARD_HOLDER = "Boburjon Astanov"
 
 # Logging sozlash
 logging.basicConfig(level=logging.INFO)
