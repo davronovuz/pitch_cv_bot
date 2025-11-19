@@ -197,6 +197,7 @@ def start_keyboard():
         InlineKeyboardButton("✅ Boshlash", callback_data="start_yes"),
         InlineKeyboardButton("❌ Keyinroq", callback_data="start_no")
     )
+    kb.add(InlineKeyboardButton("📄 PPTX tavsiya (video)", callback_data="pptx_tips"))
 
     return kb
 
