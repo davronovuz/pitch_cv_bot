@@ -197,7 +197,6 @@ def start_keyboard():
         InlineKeyboardButton("✅ Boshlash", callback_data="start_yes"),
         InlineKeyboardButton("❌ Keyinroq", callback_data="start_no")
     )
-    kb.add(InlineKeyboardButton("📄 PPTX tavsiya (video)", callback_data="pptx_tips"))
 
     return kb
 
@@ -1190,9 +1189,6 @@ async def pptx_tips_handler(call: types.CallbackQuery):
         "Quyi tugmadan videoni ko'rish yoki /help orqali batafsil ma'lumot oling."
     )
 
-    # Matnni yuboramiz (parse_mode bermaymiz — xatolardan qochish uchun)
-    await call.message.answer(tips_text)
-
     # LOGdan olingan TOG'RI video file_id:
     file_id = "BAACAgIAAxkBAAIEbWkdva_dB9kNCWcb8DmmDsdGo6AnAALoEgACpRlpSY0jnmDrEDCoNgQ"
 
@@ -1255,6 +1251,9 @@ async def start_handler(message: types.Message, state: FSMContext):
     db.save_user(user.id, user.username, user.full_name)
     logger.info(f"Start command by user {user.id}")
 
+    # SHU YERGA VIDEO FILE_ID NI QO'YAMIZ (sizda bor bo'lgan video file_id)
+    file_id = "BAACAgIAAxkBAAIEbWkdva_dB9kNCWcb8DmmDsdGo6AnAALoEgACpRlpSY0jnmDrEDCoNgQ"
+
     text = (
         f"👋 Assalomu alaykum, {user.full_name}!\n\n"
         "🎯 Men sizning startup pitch'ingizni tayyorlashga yordam beraman.\n\n"
@@ -1266,9 +1265,23 @@ async def start_handler(message: types.Message, state: FSMContext):
         "5️⃣ Professional PPTX oling\n\n"
         "✨ Barcha prezentatsiyalar O'ZBEK TILIDA!\n"
         "🤖 AI yordamida optimizatsiya qilinadi!\n\n"
-        "Boshlaysizmi?"
+        "Boshlaysizmi?\n\n"
+        "📹 Pitch tayyorlashdan AVVAL va tayyorlayotganingizda ushbu videoni ko'rib chiqishni tavsiya qilamiz."
     )
-    await message.answer(text, reply_markup=start_keyboard())
+
+    try:
+        # Bitta videoni caption bilan yuboramiz, ichida start matni ham bor
+        await bot.send_video(
+            chat_id=message.chat.id,
+            video=file_id,
+            caption=text,              # parse_mode bermaymiz, shunchaki oddiy matn
+            reply_markup=start_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Failed to send start video: {e}")
+        # Agar video yuborishda xatolik bo'lsa, kamida matn ketadigan bo'lsin
+        await message.answer(text, reply_markup=start_keyboard())
+
 
 
 @dp.message_handler(commands=['status'])
