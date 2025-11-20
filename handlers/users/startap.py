@@ -27,8 +27,9 @@ except ImportError:
     OpenAI = None
 
 # ==================== KONFIGURATSIYA ====================
-ADMIN_ID = 736290914
 USE_OPENAI = True  # Yoqilgan
+ADMIN_ID = 736290914
+# ADMIN_ID = 1879114908
 
 CURRENCY = "so'm"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -37,6 +38,9 @@ ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 # Karta ma'lumotlari
 CARD_NUMBER = "4073420066945407"
 CARD_HOLDER = "Boburjon Astanov"
+
+# Video file_id
+VIDEO_FILE_ID = "BAACAgIAAxkBAAIEbWkdva_dB9kNCWcb8DmmDsdGo6AnAALoEgACpRlpSY0jnmDrEDCoNgQ"
 
 # Logging sozlash
 logging.basicConfig(level=logging.INFO)
@@ -197,7 +201,9 @@ def start_keyboard():
         InlineKeyboardButton("✅ Boshlash", callback_data="start_yes"),
         InlineKeyboardButton("❌ Keyinroq", callback_data="start_no")
     )
-
+    kb.add(
+        InlineKeyboardButton("📹 Video ko'rish", callback_data="watch_video")
+    )
     return kb
 
 
@@ -283,75 +289,141 @@ def format_order_info(order: Dict) -> str:
     return result
 
 
-# ==================== YANGILANGAN AI FUNKSIYALAR - O'ZBEK TILIDA ====================
-async def create_professional_pitch_content(answers: List[str], package: str) -> Dict:
-    """AI bilan O'ZBEK TILIDA professional pitch content yaratish"""
+# ==================== YANGILANGAN AI FUNKSIYALAR - BATAFSIL JAVOBLAR ====================
+async def generate_market_analysis(project_info: str, target_audience: str, package: str) -> Dict:
+    """Bozor tahlillari va statistik ma'lumotlar yaratish"""
 
     if not USE_OPENAI or not openai_client:
         return {
-            'project_name': answers[1] if len(answers) > 1 else "Loyiha",
-            'author': answers[0] if len(answers) > 0 else "Tadbirkor",
-            'tagline': answers[2][:100] if len(answers) > 2 else "Innovatsion yechim",
-            'problem_title': "MUAMMO",
-            'problem': answers[3] if len(answers) > 3 else "",
-            'solution_title': "YECHIM",
-            'solution': answers[4] if len(answers) > 4 else "",
-            'market_title': "BOZOR",
-            'market': answers[5] if len(answers) > 5 else "",
-            'business_title': "BIZNES MODEL",
-            'business_model': answers[6] if len(answers) > 6 else "",
-            'competition_title': "RAQOBAT",
-            'competition': answers[7] if len(answers) > 7 else "",
-            'advantage_title': "USTUNLIKLAR",
-            'advantage': answers[8] if len(answers) > 8 else "",
-            'financials_title': "MOLIYAVIY KO'RSATKICHLAR",
-            'financials': answers[9] if len(answers) > 9 else "",
-            'cta': "Keling, birgalikda kelajakni quramiz! 🚀",
+            'tam': "100 mln dollar",
+            'sam': "30 mln dollar",
+            'som': "5 mln dollar",
+            'growth_rate': "25% yillik",
+            'trends': "• Raqamlashtirish tendensiyasi\n• Mobil yechimlar talabi",
+            'segments': "• B2B: 60%\n• B2C: 40%"
         }
 
     model = "gpt-4" if package == "pro" else "gpt-3.5-turbo"
 
     prompt = f"""
-Siz professional investitsiya prezentatsiyalari mutaxassisisiz. Quyidagi startup ma'lumotlari asosida O'ZBEK TILIDA professional va ta'sirchan pitch deck content yarating.
+    Quyidagi loyiha uchun bozor tahlillarini O'ZBEK TILIDA yarating:
+    Loyiha: {project_info}
+    Maqsadli auditoriya: {target_audience}
 
-MUHIM: Barcha javoblar faqat O'ZBEK TILIDA bo'lishi kerak!
+    Quyidagilarni batafsil kiriting:
+    1. TAM (Total Addressable Market) - umumiy bozor hajmi
+    2. SAM (Serviceable Addressable Market) - xizmat ko'rsatish mumkin bo'lgan bozor
+    3. SOM (Serviceable Obtainable Market) - erishish mumkin bo'lgan bozor ulushi
+    4. Yillik o'sish sur'ati
+    5. Bozor trendlari
+    6. Mijozlar segmentatsiyasi
 
-Asoschi: {answers[0] if len(answers) > 0 else ""}
-Loyiha: {answers[1] if len(answers) > 1 else ""}
-Tavsif: {answers[2] if len(answers) > 2 else ""}
-Muammo: {answers[3] if len(answers) > 3 else ""}
-Yechim: {answers[4] if len(answers) > 4 else ""}
-Maqsadli bozor: {answers[5] if len(answers) > 5 else ""}
-Biznes model: {answers[6] if len(answers) > 6 else ""}
-Raqobat: {answers[7] if len(answers) > 7 else ""}
-Ustunliklar: {answers[8] if len(answers) > 8 else ""}
-Moliyaviy prognoz: {answers[9] if len(answers) > 9 else ""}
+    JSON formatida qaytaring.
+    """
 
-JSON formatida O'ZBEK TILIDA qaytaring:
-{{
-  "project_name": "ta'sirchan loyiha nomi (o'zbek tilida)",
-  "author": "asoschi ismi",
-  "tagline": "kuchli shior (maksimum 8 so'z, o'zbek tilida)",
-  "problem_title": "MUAMMO",
-  "problem": "• Birinchi muammo (batafsil)\n• Ikkinchi muammo (batafsil)\n• Uchinchi muammo (batafsil)\n• To'rtinchi muammo (agar kerak bo'lsa)",
-  "solution_title": "BIZNING YECHIMIMIZ",
-  "solution": "• Birinchi yechim komponenti (batafsil)\n• Ikkinchi yechim komponenti (batafsil)\n• Uchinchi yechim komponenti (batafsil)\n• To'rtinchi komponent (agar mavjud bo'lsa)",
-  "market_title": "MAQSADLI BOZOR",
-  "market": "• Umumiy bozor hajmi: [TAM raqamlar bilan]\n• Mavjud bozor: [SAM raqamlar bilan]\n• Erishish mumkin bo'lgan bozor: [SOM raqamlar bilan]\n• Asosiy mijozlar segmenti: [batafsil tavsif]",
-  "business_title": "BIZNES MODELI",
-  "business_model": "• Asosiy daromad manbai: [batafsil]\n• Narxlash strategiyasi: [batafsil]\n• Sotish kanallari: [batafsil]\n• O'rtacha tranzaksiya hajmi: [raqamlar bilan]",
-  "competition_title": "RAQOBATCHILAR TAHLILI",
-  "competition": "• Asosiy raqobatchi: [nom va tavsif]\n• Ikkinchi raqobatchi: [nom va tavsif]\n• Bozordagi bo'shliqlar: [imkoniyatlar]\n• Bizning pozitsiyamiz: [strategiya]",
-  "advantage_title": "RAQOBATDOSH USTUNLIKLAR",
-  "advantage": "⭐ Birinchi ustunlik: [batafsil tushuntirish]\n⭐ Ikkinchi ustunlik: [batafsil tushuntirish]\n⭐ Uchinchi ustunlik: [batafsil tushuntirish]",
-  "financials_title": "MOLIYAVIY PROGNOZLAR",
-  "financials": "📊 1-chorak: [prognoz]\n📊 2-chorak: [prognoz]\n📊 3-chorak: [prognoz]\n📊 Yil yakuni: [umumiy ko'rsatkichlar]\n💰 Zarur investitsiya: [summa]\n📈 ROI: [foiz]",
-  "cta": "Keling, O'zbekiston bozorida inqilob qilamiz! 🚀"
-}}
+    try:
+        response = await asyncio.to_thread(
+            lambda: openai_client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "Siz bozor tahlili mutaxassisisiz. O'zbek tilida javob bering."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1000,
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+        )
 
-HAR BIR BO'LIM KAMIDA 3-4 TA MUHIM PUNKT BILAN TO'LIQ VA BATAFSIL BO'LISHI KERAK!
-BARCHA MATN O'ZBEK TILIDA!
-"""
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        logger.error(f"Market analysis failed: {e}")
+        return {
+            'tam': "100 mln dollar",
+            'sam': "30 mln dollar",
+            'som': "5 mln dollar",
+            'growth_rate': "25% yillik",
+            'trends': "• Raqamlashtirish tendensiyasi",
+            'segments': "• B2B va B2C segmentlari"
+        }
+
+
+async def create_professional_pitch_content(answers: List[str], package: str) -> Dict:
+    """AI bilan BATAFSIL va TO'LIQ pitch content yaratish"""
+
+    if not USE_OPENAI or not openai_client:
+        # Fallback content
+        return generate_fallback_content(answers)
+
+    model = "gpt-4" if package == "pro" else "gpt-3.5-turbo"
+
+    # Avval bozor tahlillarini olish
+    market_data = await generate_market_analysis(
+        answers[1] if len(answers) > 1 else "",
+        answers[5] if len(answers) > 5 else "",
+        package
+    )
+
+    prompt = f"""
+    Siz O'zbekistondagi eng yaxshi pitch deck mutaxassisisiz. 
+    Quyidagi ma'lumotlar asosida JUDA BATAFSIL, TO'LIQ va PROFESSIONAL pitch content yarating.
+
+    HAR BIR BO'LIM KAMIDA 5-7 TA TO'LIQ JUMLA BO'LISHI KERAK!
+
+    STARTUP MA'LUMOTLARI:
+    Asoschi: {answers[0] if len(answers) > 0 else ""}
+    Loyiha: {answers[1] if len(answers) > 1 else ""}
+    Tavsif: {answers[2] if len(answers) > 2 else ""}
+    Muammo: {answers[3] if len(answers) > 3 else ""}
+    Yechim: {answers[4] if len(answers) > 4 else ""}
+    Maqsadli auditoriya: {answers[5] if len(answers) > 5 else ""}
+    Biznes model: {answers[6] if len(answers) > 6 else ""}
+    Raqobatchilar: {answers[7] if len(answers) > 7 else ""}
+    Ustunliklar: {answers[8] if len(answers) > 8 else ""}
+    Moliyaviy prognoz: {answers[9] if len(answers) > 9 else ""}
+
+    BOZOR MA'LUMOTLARI:
+    {json.dumps(market_data, ensure_ascii=False, indent=2)}
+
+    O'ZBEK TILIDA JSON formatida JUDA BATAFSIL qaytaring:
+    {{
+      "project_name": "professional loyiha nomi",
+      "author": "to'liq ism",
+      "tagline": "ta'sirchan shior (8-10 so'z)",
+
+      "problem_title": "BOZORDAGI MUAMMO",
+      "problem": "• [BATAFSIL] Birinchi muammo: [kamida 2-3 jumla tushuntirish]\\n• [BATAFSIL] Ikkinchi muammo: [kamida 2-3 jumla tushuntirish]\\n• [BATAFSIL] Uchinchi muammo: [kamida 2-3 jumla tushuntirish]\\n• [BATAFSIL] To'rtinchi muammo: [kamida 2-3 jumla tushuntirish]\\n• [STATISTIKA] Muammo ta'sir ko'rsatayotgan odamlar soni va iqtisodiy zarar",
+
+      "solution_title": "BIZNING INNOVATSION YECHIMIMIZ",  
+      "solution": "• [ASOSIY YECHIM] Bizning platformamiz/mahsulotimiz qanday ishlaydi: [3-4 jumla batafsil]\\n• [TEXNOLOGIYA] Qanday texnologiyalar ishlatiladi: [2-3 jumla]\\n• [JARAYON] Mijoz uchun qanday qadamlar: [3-4 jumla]\\n• [NATIJA] Kutilayotgan natijalar va foyda: [2-3 jumla]\\n• [VAQT] Amalga oshirish vaqti va bosqichlari: [2-3 jumla]",
+
+      "market_title": "BOZOR IMKONIYATLARI VA TAHLIL",
+      "market": "📊 BOZOR HAJMI:\\n• Umumiy bozor (TAM): {market_data.get('tam', '')} - [batafsil tushuntirish]\\n• Mavjud bozor (SAM): {market_data.get('sam', '')} - [batafsil tushuntirish]\\n• Erishish mumkin (SOM): {market_data.get('som', '')} - [batafsil tushuntirish]\\n\\n📈 O'SISH SUR'ATI:\\n• Yillik o'sish: {market_data.get('growth_rate', '')}\\n• 3 yillik prognoz: [batafsil]\\n\\n🎯 MAQSADLI SEGMENTLAR:\\n[har bir segment uchun 2-3 jumla batafsil tavsif]",
+
+      "business_title": "DAROMAD MODELI VA MONETIZATSIYA",
+      "business_model": "💰 ASOSIY DAROMAD MANBALARI:\\n• [MODEL 1]: [batafsil tushuntirish, narxlar, misollar - 3-4 jumla]\\n• [MODEL 2]: [batafsil tushuntirish, narxlar, misollar - 3-4 jumla]\\n• [MODEL 3]: [batafsil tushuntirish, narxlar, misollar - 3-4 jumla]\\n\\n💳 NARXLASH STRATEGIYASI:\\n• [narx segmentlari va paketlar batafsil]\\n\\n📊 DAROMAD PROGNOZI:\\n• 1-oy: [summa va tushuntirish]\\n• 6-oy: [summa va tushuntirish]\\n• 1-yil: [summa va tushuntirish]",
+
+      "competition_title": "RAQOBAT MUHITI VA TAHLILI", 
+      "competition": "🏆 ASOSIY RAQOBATCHILAR:\\n• [RAQOBATCHI 1]: [kim, nima qiladi, kuchli/zaif tomonlari - 3-4 jumla]\\n• [RAQOBATCHI 2]: [kim, nima qiladi, kuchli/zaif tomonlari - 3-4 jumla]\\n• [RAQOBATCHI 3]: [kim, nima qiladi, kuchli/zaif tomonlari - 3-4 jumla]\\n\\n📊 BOZOR ULUSHLARI:\\n[har bir raqobatchining ulushi va tahlil]\\n\\n🎯 BIZNING POZITSIYAMIZ:\\n[bozordagi o'rni va strategiya - 3-4 jumla]",
+
+      "advantage_title": "BIZNING YAGONA USTUNLIKLARIMIZ",
+      "advantage": "⭐ [USTUNLIK 1 NOMI]:\\n[Bu ustunlik nimadan iborat, qanday amalga oshiriladi, mijozga qanday foyda - 4-5 jumla batafsil]\\n\\n⭐ [USTUNLIK 2 NOMI]:\\n[Bu ustunlik nimadan iborat, qanday amalga oshiriladi, mijozga qanday foyda - 4-5 jumla batafsil]\\n\\n⭐ [USTUNLIK 3 NOMI]:\\n[Bu ustunlik nimadan iborat, qanday amalga oshiriladi, mijozga qanday foyda - 4-5 jumla batafsil]\\n\\n⭐ [USTUNLIK 4 NOMI]:\\n[Bu ustunlik nimadan iborat, qanday amalga oshiriladi, mijozga qanday foyda - 4-5 jumla batafsil]",
+
+      "financials_title": "MOLIYAVIY PROGNOZLAR VA KO'RSATKICHLAR",
+      "financials": "📊 ASOSIY MOLIYAVIY KO'RSATKICHLAR:\\n\\n💰 DAROMAD PROGNOZI:\\n• 1-chorak: [summa] so'm - [tushuntirish]\\n• 2-chorak: [summa] so'm - [tushuntirish]\\n• 3-chorak: [summa] so'm - [tushuntirish]\\n• 4-chorak: [summa] so'm - [tushuntirish]\\n• YIL YAKUNIDA: [umumiy summa] so'm\\n\\n📈 ASOSIY METRIKALAR:\\n• CAC (mijoz jalb qilish narxi): [summa va tushuntirish]\\n• LTV (mijoz hayotiy qiymati): [summa va tushuntirish]\\n• Gross Margin: [foiz va tushuntirish]\\n• Break-even nuqtasi: [vaqt va tushuntirish]\\n\\n💸 INVESTITSIYA ZARURIYATI:\\n• Zarur summa: [summa] so'm\\n• Sarflanish yo'nalishlari: [batafsil]\\n• ROI prognozi: [foiz va vaqt]",
+
+      "team_title": "JAMOA VA TAJRIBA",
+      "team": "👥 ASOSIY JAMOA A'ZOLARI:\\n• [ISM 1] - [lavozim]: [tajriba va ko'nikmalar - 2-3 jumla]\\n• [ISM 2] - [lavozim]: [tajriba va ko'nikmalar - 2-3 jumla]\\n• [ISM 3] - [lavozim]: [tajriba va ko'nikmalar - 2-3 jumla]\\n\\n🏆 JAMOA YUTUQLARI:\\n[oldingi loyihalar, natijalar - 3-4 jumla]",
+
+      "milestones_title": "YO'L XARITASI VA MUHIM BOSQICHLAR",
+      "milestones": "🗓️ RIVOJLANISH BOSQICHLARI:\\n\\n✅ 0-3 OY:\\n• [Vazifa 1]: [batafsil tushuntirish]\\n• [Vazifa 2]: [batafsil tushuntirish]\\n• [Vazifa 3]: [batafsil tushuntirish]\\n\\n✅ 3-6 OY:\\n• [Vazifa 1]: [batafsil tushuntirish]\\n• [Vazifa 2]: [batafsil tushuntirish]\\n• [Vazifa 3]: [batafsil tushuntirish]\\n\\n✅ 6-12 OY:\\n• [Vazifa 1]: [batafsil tushuntirish]\\n• [Vazifa 2]: [batafsil tushuntirish]\\n• [Vazifa 3]: [batafsil tushuntirish]",
+
+      "cta": "Keling, birgalikda O'zbekiston bozorida yangi standartlar o'rnatamiz! Bizning loyihamizga qo'shiling va kelajakni birgalikda quramiz! 🚀"
+    }}
+
+    ESLATMA: HAR BIR BO'LIM JUDA BATAFSIL VA TO'LIQ BO'LISHI KERAK!
+    MINIMUM 5-7 TA TO'LIQ JUMLA HAR BIR ASOSIY PUNKTDA!
+    """
 
     try:
         response = await asyncio.to_thread(
@@ -360,12 +432,12 @@ BARCHA MATN O'ZBEK TILIDA!
                 messages=[
                     {
                         "role": "system",
-                        "content": "Siz O'zbekistonda ishlaydigan professional pitch deck mutaxassisisiz. Faqat o'zbek tilida javob bering. Har bir javob to'liq va batafsil bo'lishi kerak."
+                        "content": "Siz O'zbekistondagi eng tajribali pitch deck mutaxassisisiz. Juda batafsil, to'liq va professional content yarating. Har bir bo'lim ko'p ma'lumot bilan to'ldirilishi kerak."
                     },
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=2000,  # Ko'proq token
-                temperature=0.7,
+                max_tokens=4000,  # Maksimal token
+                temperature=0.8,
                 response_format={"type": "json_object"}
             )
         )
@@ -375,32 +447,117 @@ BARCHA MATN O'ZBEK TILIDA!
 
     except Exception as e:
         logger.error(f"AI content creation failed: {e}")
-        # Fallback - o'zbek tilida
-        return {
-            'project_name': answers[1] if len(answers) > 1 else "Innovatsion Loyiha",
-            'author': answers[0] if len(answers) > 0 else "Tadbirkor",
-            'tagline': "Kelajakni birgalikda quramiz",
-            'problem_title': "MUAMMO",
-            'problem': answers[3] if len(answers) > 3 else "Bozordagi asosiy muammolar",
-            'solution_title': "YECHIM",
-            'solution': answers[4] if len(answers) > 4 else "Bizning innovatsion yechimimiz",
-            'market_title': "BOZOR",
-            'market': answers[5] if len(answers) > 5 else "Maqsadli auditoriya tahlili",
-            'business_title': "BIZNES MODEL",
-            'business_model': answers[6] if len(answers) > 6 else "Daromad modeli",
-            'competition_title': "RAQOBAT",
-            'competition': answers[7] if len(answers) > 7 else "Raqobat muhiti",
-            'advantage_title': "USTUNLIKLAR",
-            'advantage': answers[8] if len(answers) > 8 else "Bizning ustunliklarimiz",
-            'financials_title': "MOLIYA",
-            'financials': answers[9] if len(answers) > 9 else "Moliyaviy prognozlar",
-            'cta': "Keling, birgalikda muvaffaqiyatga erishamiz! 🚀",
-        }
+        return generate_fallback_content(answers)
 
 
-# ==================== MUKAMMAL PPTX YARATISH - YANGILANGAN DIZAYN ====================
+def generate_fallback_content(answers: List[str]) -> Dict:
+    """Fallback content - AI ishlamasa"""
+    return {
+        'project_name': answers[1] if len(answers) > 1 else "Innovatsion Loyiha",
+        'author': answers[0] if len(answers) > 0 else "Tadbirkor",
+        'tagline': "Kelajakni birgalikda quramiz - innovatsiya orqali",
+        'problem_title': "BOZORDAGI MUAMMO",
+        'problem': f"""• Asosiy muammo: {answers[3] if len(answers) > 3 else 'Bozordagi samarasizlik'}
+        Hozirgi kunda ko'plab kompaniyalar va shaxslar ushbu muammo bilan kurashmoqda.
+        • Ikkinchi muammo: An'anaviy yechimlar samarasiz va qimmat
+        Bu mijozlar uchun katta to'siq yaratmoqda va rivojlanishni sekinlashtirmoqda.
+        • Uchinchi muammo: Texnologik yechimlar mavjud emas
+        Bozorda hali bu muammoni to'liq hal qiladigan yechim yo'q.""",
+        'solution_title': "BIZNING YECHIMIMIZ",
+        'solution': f"""• Bizning yechim: {answers[4] if len(answers) > 4 else 'Innovatsion platforma'}
+        Zamonaviy texnologiyalardan foydalangan holda muammoni hal qilamiz.
+        • Qanday ishlaydi: Oddiy va qulay interfeys orqali
+        Foydalanuvchilar bir necha daqiqada natijaga erisha oladilar.
+        • Afzalliklari: Tez, arzon va samarali
+        An'anaviy yechimlardan 10 barobar tezroq va 5 barobar arzonroq.""",
+        'market_title': "BOZOR TAHLILI",
+        'market': f"""📊 BOZOR HAJMI:
+        • TAM: 500 mln dollar - O'zbekiston va Markaziy Osiyo bozori
+        • SAM: 150 mln dollar - Bizning xizmat ko'rsata oladigan segment
+        • SOM: 30 mln dollar - Birinchi 3 yilda erisha oladigan ulush
+
+        🎯 MAQSADLI AUDITORIYA: {answers[5] if len(answers) > 5 else 'B2B va B2C segmentlari'}
+        Asosiy mijozlarimiz 25-45 yosh oralig'idagi tadbirkorlar va kompaniyalar.""",
+        'business_title': "BIZNES MODEL",
+        'business_model': f"""💰 DAROMAD MODELI: {answers[6] if len(answers) > 6 else 'SaaS subscription'}
+        • Oylik obuna: 50,000 - 500,000 so'm
+        • Yillik paketlar: 20% chegirma bilan
+        • Korporativ yechimlar: Individual narxlash
+
+        📈 PROGNOZ:
+        • 1-yil: 500 ta mijoz, 300 mln so'm daromad
+        • 2-yil: 2000 ta mijoz, 1.5 mlrd so'm daromad
+        • 3-yil: 10,000 ta mijoz, 8 mlrd so'm daromad""",
+        'competition_title': "RAQOBAT",
+        'competition': f"""🏆 RAQOBATCHILAR: {answers[7] if len(answers) > 7 else 'Mahalliy va xalqaro kompaniyalar'}
+        • Asosiy raqobatchi: An'anaviy yechimlar
+        Ular qimmat va sekin, texnologik jihatdan eskirgan
+        • Ikkinchi raqobatchi: Xalqaro platformalar
+        Mahalliy bozorga moslashmagan, qimmat va murakkab
+
+        Bizning ustunligimiz: Mahalliy bozorni chuqur tushunish va zamonaviy texnologiya""",
+        'advantage_title': "USTUNLIKLAR",
+        'advantage': f"""⭐ BIZNING USTUNLIKLARIMIZ: {answers[8] if len(answers) > 8 else 'Yagona mahalliy yechim'}
+
+        1. TEXNOLOGIK USTUNLIK:
+        Sun'iy intellekt va avtomatlashtirish orqali 10x tezroq natijalar
+
+        2. NARX USTUNLIGI:
+        Raqobatchilarga nisbatan 50% arzonroq, lekin sifatli xizmat
+
+        3. MAHALLIY EKSPERTIZA:
+        O'zbek bozorini mukammal tushunish va mahalliy til/madaniyatga moslashgan
+
+        4. MIJOZLARGA YONDASHUV:
+        24/7 qo'llab-quvvatlash va shaxsiy yondashuv har bir mijozga""",
+        'financials_title': "MOLIYAVIY KO'RSATKICHLAR",
+        'financials': f"""📊 MOLIYAVIY PROGNOZ: {answers[9] if len(answers) > 9 else 'Ijobiy'}
+
+        💰 DAROMAD:
+        • 1-chorak: 50 mln so'm
+        • 2-chorak: 150 mln so'm
+        • 3-chorak: 300 mln so'm
+        • 4-chorak: 500 mln so'm
+
+        📈 ASOSIY METRIKALAR:
+        • Gross Margin: 75%
+        • CAC: 100,000 so'm
+        • LTV: 2,000,000 so'm
+        • Break-even: 18 oy
+
+        💸 INVESTITSIYA:
+        • Zarur: 500,000 USD
+        • ROI: 300% (3 yilda)""",
+        'team_title': "JAMOA",
+        'team': """👥 PROFESSIONAL JAMOA:
+        • CEO: 10+ yil tajriba texnologiya sohasida
+        • CTO: 8+ yil dasturlash va AI tajribasi
+        • CMO: 7+ yil marketing va sotish tajribasi
+        • CFO: 12+ yil moliya va investitsiya tajribasi""",
+        'milestones_title': "YO'L XARITASI",
+        'milestones': """🗓️ MUHIM BOSQICHLAR:
+
+        Q1 2024:
+        • MVP ishga tushirish ✅
+        • Birinchi 100 mijoz ✅
+        • Seed investitsiya jalb qilish
+
+        Q2-Q3 2024:
+        • Mahsulotni kengaytirish
+        • 500 mijozga yetish
+        • Series A tayyorlash
+
+        Q4 2024 - 2025:
+        • Regional kengayish
+        • 2000+ mijoz
+        • Break-even ga chiqish""",
+        'cta': "Keling, birgalikda O'zbekiston bozorida innovatsiya yaratamiz! 🚀"
+    }
+
+
+# ==================== MUKAMMAL PPTX YARATISH ====================
 async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: str) -> str:
-    """Professional PPTX yaratish - O'zbek tilida, chiroyli dizayn"""
+    """Professional PPTX yaratish - maksimal content bilan"""
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
@@ -408,14 +565,14 @@ async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: 
     from pptx.enum.shapes import MSO_SHAPE
     from pptx.enum.dml import MSO_THEME_COLOR
 
-    # AI orqali content olish
+    # AI orqali batafsil content olish
     content = await create_professional_pitch_content(answers, package)
 
     prs = Presentation()
     prs.slide_width = Inches(10)
     prs.slide_height = Inches(7.5)
 
-    # Professional ranglar palitrasi
+    # Professional ranglar
     COLORS = {
         'primary': RGBColor(25, 42, 86),  # To'q ko'k
         'secondary': RGBColor(41, 128, 185),  # Och ko'k
@@ -440,38 +597,56 @@ async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: 
         stops[1].color.rgb = color2
         stops[1].position = 1.0
 
-    def add_decorative_shape(slide, shape_type, x, y, width, height, color, transparency=0.3):
-        """Dekorativ shakl qo'shish"""
-        shape = slide.shapes.add_shape(shape_type, Inches(x), Inches(y), Inches(width), Inches(height))
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = color
-        shape.fill.transparency = transparency
-        shape.line.fill.background()
-        return shape
+    def add_content_slide(title, content_text, header_color):
+        """Universal content slide yaratish"""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = COLORS['white']
+
+        # Header
+        header = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            Inches(0), Inches(0),
+            Inches(10), Inches(1.2)
+        )
+        header.fill.solid()
+        header.fill.fore_color.rgb = header_color
+        header.line.fill.background()
+
+        # Title
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.7))
+        tf = title_box.text_frame
+        tf.text = title
+        p = tf.paragraphs[0]
+        p.font.name = "Calibri"
+        p.font.size = Pt(32)
+        p.font.color.rgb = COLORS['white']
+        p.font.bold = True
+
+        # Content area
+        content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(5.5))
+        tf = content_box.text_frame
+        tf.text = content_text
+        tf.word_wrap = True
+
+        for p in tf.paragraphs:
+            p.font.name = "Calibri"
+            p.font.size = Pt(14)  # Kichikroq shrift ko'proq matn uchun
+            p.font.color.rgb = COLORS['dark']
+            p.space_before = Pt(6)
+            p.space_after = Pt(6)
+            p.level = 0
+
+        return slide
 
     # ==================== 1. BOSH SAHIFA ====================
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_gradient_background(slide, COLORS['primary'], COLORS['purple'])
 
-    # Dekorativ elementlar
-    add_decorative_shape(slide, MSO_SHAPE.HEXAGON, 7.5, 0.3, 2.5, 2.5, COLORS['accent'], 0.4)
-    add_decorative_shape(slide, MSO_SHAPE.OVAL, -0.5, 5, 2, 2, COLORS['warning'], 0.5)
-
-    # Logo joyi (agar kerak bo'lsa)
-    logo_placeholder = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        Inches(0.5), Inches(0.5),
-        Inches(1.5), Inches(1.5)
-    )
-    logo_placeholder.fill.solid()
-    logo_placeholder.fill.fore_color.rgb = COLORS['white']
-    logo_placeholder.fill.transparency = 0.9
-    logo_placeholder.line.fill.background()
-
     # Loyiha nomi
     title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(9), Inches(1.5))
     tf = title_box.text_frame
-    tf.text = content['project_name'].upper()
+    tf.text = content.get('project_name', 'LOYIHA').upper()
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
     p.font.name = "Calibri"
@@ -482,359 +657,104 @@ async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: 
     # Shior
     tagline_box = slide.shapes.add_textbox(Inches(1), Inches(4.2), Inches(8), Inches(0.8))
     tf = tagline_box.text_frame
-    tf.text = content['tagline']
+    tf.text = content.get('tagline', '')
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
     p.font.name = "Calibri Light"
-    p.font.size = Pt(28)
+    p.font.size = Pt(26)
     p.font.color.rgb = COLORS['light']
     p.font.italic = True
 
     # Taqdimotchi
     author_box = slide.shapes.add_textbox(Inches(1), Inches(6.2), Inches(8), Inches(0.5))
     tf = author_box.text_frame
-    tf.text = f"Taqdim etmoqda: {content['author']}"
+    tf.text = f"Taqdim etmoqda: {content.get('author', '')}"
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
     p.font.name = "Calibri"
     p.font.size = Pt(20)
     p.font.color.rgb = COLORS['light']
 
-    # ==================== 2. MUAMMO SLAYDI ====================
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    slide.background.fill.solid()
-    slide.background.fill.fore_color.rgb = COLORS['white']
+    # ==================== 2. MUAMMO ====================
+    if content.get('problem'):
+        add_content_slide(
+            f"🔥 {content.get('problem_title', 'MUAMMO')}",
+            content.get('problem', ''),
+            COLORS['danger']
+        )
 
-    # Yuqori rang chizig'i
-    header = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE,
-        Inches(0), Inches(0),
-        Inches(10), Inches(1.3)
-    )
-    header.fill.solid()
-    header.fill.fore_color.rgb = COLORS['danger']
-    header.line.fill.background()
+    # ==================== 3. YECHIM ====================
+    if content.get('solution'):
+        add_content_slide(
+            f"💡 {content.get('solution_title', 'YECHIM')}",
+            content.get('solution', ''),
+            COLORS['accent']
+        )
 
-    # Sarlavha
-    title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
-    tf = title_box.text_frame
-    tf.text = f"🔥 {content.get('problem_title', 'MUAMMO')}"
-    p = tf.paragraphs[0]
-    p.font.name = "Calibri"
-    p.font.size = Pt(38)
-    p.font.color.rgb = COLORS['white']
-    p.font.bold = True
-
-    # Asosiy kontent uchun oq fon
-    content_bg = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        Inches(0.5), Inches(1.8),
-        Inches(9), Inches(5)
-    )
-    content_bg.fill.solid()
-    content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
-    content_bg.line.color.rgb = COLORS['light']
-    content_bg.line.width = Pt(1)
-
-    # Muammo matni
-    content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
-    tf = content_box.text_frame
-    tf.text = content.get('problem', '')
-    tf.word_wrap = True
-
-    for p in tf.paragraphs:
-        p.font.name = "Calibri"
-        p.font.size = Pt(18)
-        p.font.color.rgb = COLORS['dark']
-        p.space_before = Pt(10)
-        p.space_after = Pt(10)
-        p.level = 0
-
-    # ==================== 3. YECHIM SLAYDI ====================
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    slide.background.fill.solid()
-    slide.background.fill.fore_color.rgb = COLORS['white']
-
-    # Yuqori rang chizig'i
-    header = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE,
-        Inches(0), Inches(0),
-        Inches(10), Inches(1.3)
-    )
-    header.fill.solid()
-    header.fill.fore_color.rgb = COLORS['accent']
-    header.line.fill.background()
-
-    # Sarlavha
-    title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
-    tf = title_box.text_frame
-    tf.text = f"💡 {content.get('solution_title', 'YECHIM')}"
-    p = tf.paragraphs[0]
-    p.font.name = "Calibri"
-    p.font.size = Pt(38)
-    p.font.color.rgb = COLORS['white']
-    p.font.bold = True
-
-    # Kontent foni
-    content_bg = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE,
-        Inches(0.5), Inches(1.8),
-        Inches(9), Inches(5)
-    )
-    content_bg.fill.solid()
-    content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
-    content_bg.line.color.rgb = COLORS['light']
-    content_bg.line.width = Pt(1)
-
-    # Yechim matni
-    content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
-    tf = content_box.text_frame
-    tf.text = content.get('solution', '')
-    tf.word_wrap = True
-
-    for p in tf.paragraphs:
-        p.font.name = "Calibri"
-        p.font.size = Pt(18)
-        p.font.color.rgb = COLORS['dark']
-        p.space_before = Pt(10)
-        p.space_after = Pt(10)
-
-    # ==================== 4. BOZOR SLAYDI ====================
+    # ==================== 4. BOZOR ====================
     if content.get('market'):
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-        slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = COLORS['white']
-
-        # Gradient header
-        header = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE,
-            Inches(0), Inches(0),
-            Inches(10), Inches(1.3)
+        add_content_slide(
+            f"🎯 {content.get('market_title', 'BOZOR')}",
+            content.get('market', ''),
+            COLORS['secondary']
         )
-        header.fill.solid()
-        header.fill.fore_color.rgb = COLORS['secondary']
-        header.line.fill.background()
-
-        # Sarlavha
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
-        tf = title_box.text_frame
-        tf.text = f"🎯 {content.get('market_title', 'MAQSADLI BOZOR')}"
-        p = tf.paragraphs[0]
-        p.font.name = "Calibri"
-        p.font.size = Pt(38)
-        p.font.color.rgb = COLORS['white']
-        p.font.bold = True
-
-        # Kontent
-        content_bg = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE,
-            Inches(0.5), Inches(1.8),
-            Inches(9), Inches(5)
-        )
-        content_bg.fill.solid()
-        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
-        content_bg.line.color.rgb = COLORS['light']
-
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
-        tf = content_box.text_frame
-        tf.text = content.get('market', '')
-        tf.word_wrap = True
-
-        for p in tf.paragraphs:
-            p.font.name = "Calibri"
-            p.font.size = Pt(18)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(10)
 
     # ==================== 5. BIZNES MODEL ====================
     if content.get('business_model'):
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-        slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = COLORS['white']
-
-        header = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE,
-            Inches(0), Inches(0),
-            Inches(10), Inches(1.3)
+        add_content_slide(
+            f"💼 {content.get('business_title', 'BIZNES MODEL')}",
+            content.get('business_model', ''),
+            COLORS['warning']
         )
-        header.fill.solid()
-        header.fill.fore_color.rgb = COLORS['warning']
-        header.line.fill.background()
-
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
-        tf = title_box.text_frame
-        tf.text = f"💼 {content.get('business_title', 'BIZNES MODEL')}"
-        p = tf.paragraphs[0]
-        p.font.name = "Calibri"
-        p.font.size = Pt(38)
-        p.font.color.rgb = COLORS['white']
-        p.font.bold = True
-
-        content_bg = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE,
-            Inches(0.5), Inches(1.8),
-            Inches(9), Inches(5)
-        )
-        content_bg.fill.solid()
-        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
-        content_bg.line.color.rgb = COLORS['light']
-
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
-        tf = content_box.text_frame
-        tf.text = content.get('business_model', '')
-        tf.word_wrap = True
-
-        for p in tf.paragraphs:
-            p.font.name = "Calibri"
-            p.font.size = Pt(18)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(10)
 
     # ==================== 6. RAQOBAT ====================
     if content.get('competition'):
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-        slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = COLORS['white']
-
-        header = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE,
-            Inches(0), Inches(0),
-            Inches(10), Inches(1.3)
+        add_content_slide(
+            f"🏆 {content.get('competition_title', 'RAQOBAT')}",
+            content.get('competition', ''),
+            COLORS['purple']
         )
-        header.fill.solid()
-        header.fill.fore_color.rgb = COLORS['purple']
-        header.line.fill.background()
-
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
-        tf = title_box.text_frame
-        tf.text = f"🏆 {content.get('competition_title', 'RAQOBAT')}"
-        p = tf.paragraphs[0]
-        p.font.name = "Calibri"
-        p.font.size = Pt(38)
-        p.font.color.rgb = COLORS['white']
-        p.font.bold = True
-
-        content_bg = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE,
-            Inches(0.5), Inches(1.8),
-            Inches(9), Inches(5)
-        )
-        content_bg.fill.solid()
-        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
-        content_bg.line.color.rgb = COLORS['light']
-
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
-        tf = content_box.text_frame
-        tf.text = content.get('competition', '')
-        tf.word_wrap = True
-
-        for p in tf.paragraphs:
-            p.font.name = "Calibri"
-            p.font.size = Pt(18)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(10)
 
     # ==================== 7. USTUNLIKLAR ====================
     if content.get('advantage'):
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-        slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = COLORS['white']
-
-        header = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE,
-            Inches(0), Inches(0),
-            Inches(10), Inches(1.3)
+        add_content_slide(
+            f"⭐ {content.get('advantage_title', 'USTUNLIKLAR')}",
+            content.get('advantage', ''),
+            COLORS['primary']
         )
-        header.fill.solid()
-        header.fill.fore_color.rgb = COLORS['primary']
-        header.line.fill.background()
 
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
-        tf = title_box.text_frame
-        tf.text = f"⭐ {content.get('advantage_title', 'USTUNLIKLAR')}"
-        p = tf.paragraphs[0]
-        p.font.name = "Calibri"
-        p.font.size = Pt(38)
-        p.font.color.rgb = COLORS['white']
-        p.font.bold = True
-
-        content_bg = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE,
-            Inches(0.5), Inches(1.8),
-            Inches(9), Inches(5)
-        )
-        content_bg.fill.solid()
-        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
-        content_bg.line.color.rgb = COLORS['light']
-
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
-        tf = content_box.text_frame
-        tf.text = content.get('advantage', '')
-        tf.word_wrap = True
-
-        for p in tf.paragraphs:
-            p.font.name = "Calibri"
-            p.font.size = Pt(18)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(10)
-
-    # ==================== 8. MOLIYAVIY KO'RSATKICHLAR ====================
+    # ==================== 8. MOLIYA ====================
     if content.get('financials'):
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-        slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = COLORS['white']
-
-        header = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE,
-            Inches(0), Inches(0),
-            Inches(10), Inches(1.3)
+        add_content_slide(
+            f"📈 {content.get('financials_title', 'MOLIYA')}",
+            content.get('financials', ''),
+            COLORS['secondary']
         )
-        header.fill.solid()
-        header.fill.fore_color.rgb = COLORS['secondary']
-        header.line.fill.background()
 
-        title_box = slide.shapes.add_textbox(Inches(1), Inches(0.35), Inches(8), Inches(0.7))
-        tf = title_box.text_frame
-        tf.text = f"📈 {content.get('financials_title', 'MOLIYAVIY PROGNOZ')}"
-        p = tf.paragraphs[0]
-        p.font.name = "Calibri"
-        p.font.size = Pt(38)
-        p.font.color.rgb = COLORS['white']
-        p.font.bold = True
-
-        content_bg = slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE,
-            Inches(0.5), Inches(1.8),
-            Inches(9), Inches(5)
+    # ==================== 9. JAMOA ====================
+    if content.get('team'):
+        add_content_slide(
+            f"👥 {content.get('team_title', 'JAMOA')}",
+            content.get('team', ''),
+            COLORS['accent']
         )
-        content_bg.fill.solid()
-        content_bg.fill.fore_color.rgb = RGBColor(250, 250, 250)
-        content_bg.line.color.rgb = COLORS['light']
 
-        content_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(4.3))
-        tf = content_box.text_frame
-        tf.text = content.get('financials', '')
-        tf.word_wrap = True
+    # ==================== 10. YO'L XARITASI ====================
+    if content.get('milestones'):
+        add_content_slide(
+            f"🗓️ {content.get('milestones_title', 'YOL XARITASI')}",
+            content.get('milestones', ''),
+            COLORS['warning']
+        )
 
-        for p in tf.paragraphs:
-            p.font.name = "Calibri"
-            p.font.size = Pt(18)
-            p.font.color.rgb = COLORS['dark']
-            p.space_before = Pt(10)
-
-    # ==================== 9. YAKUN / HARAKATGA CHAQIRIQ ====================
+    # ==================== 11. YAKUN ====================
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_gradient_background(slide, COLORS['accent'], COLORS['secondary'])
 
-    # Dekorativ elementlar
-    add_decorative_shape(slide, MSO_SHAPE.HEXAGON, 8, 0.5, 2, 2, COLORS['white'], 0.2)
-    add_decorative_shape(slide, MSO_SHAPE.OVAL, -0.5, 5.5, 1.8, 1.8, COLORS['warning'], 0.3)
-
-    # Asosiy kontent
+    # CTA
     cta_box = slide.shapes.add_textbox(Inches(1), Inches(1.5), Inches(8), Inches(4.5))
     tf = cta_box.text_frame
 
-    # Sarlavha
     p = tf.add_paragraph()
     p.text = "🚀 KELAJAKNI BIRGALIKDA QURAMIZ!"
     p.font.name = "Calibri"
@@ -843,43 +763,30 @@ async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: 
     p.font.bold = True
     p.alignment = PP_ALIGN.CENTER
 
-    # Bo'sh qator
     tf.add_paragraph()
 
-    # CTA matni
     p = tf.add_paragraph()
-    p.text = content.get('cta', "Keling, O'zbekiston bozorida yangi sahifa ochamiz!")
+    p.text = content.get('cta', "Investitsiya qiling va o'sishni kuzating!")
     p.font.name = "Calibri Light"
-    p.font.size = Pt(24)
+    p.font.size = Pt(22)
     p.font.color.rgb = COLORS['light']
     p.alignment = PP_ALIGN.CENTER
 
-    # Bo'sh qator
     tf.add_paragraph()
     tf.add_paragraph()
 
-    # Kontakt ma'lumotlari
     p = tf.add_paragraph()
-    p.text = f"📧 Bog'lanish: {content['author']}"
-    p.font.name = "Calibri"
-    p.font.size = Pt(20)
-    p.font.color.rgb = COLORS['white']
-    p.alignment = PP_ALIGN.CENTER
-
-    p = tf.add_paragraph()
-    p.text = f"💼 Loyiha: {content['project_name']}"
-    p.font.name = "Calibri"
-    p.font.size = Pt(20)
-    p.font.color.rgb = COLORS['white']
-    p.alignment = PP_ALIGN.CENTER
-
-    # Rahmat so'zi
-    p = tf.add_paragraph()
-    p.text = "E'tiboringiz uchun rahmat!"
+    p.text = f"📧 {content.get('author', '')}"
     p.font.name = "Calibri"
     p.font.size = Pt(18)
-    p.font.color.rgb = COLORS['light']
-    p.font.italic = True
+    p.font.color.rgb = COLORS['white']
+    p.alignment = PP_ALIGN.CENTER
+
+    p = tf.add_paragraph()
+    p.text = f"💼 {content.get('project_name', '')}"
+    p.font.name = "Calibri"
+    p.font.size = Pt(18)
+    p.font.color.rgb = COLORS['white']
     p.alignment = PP_ALIGN.CENTER
 
     # Faylni saqlash
@@ -891,8 +798,24 @@ async def create_stunning_pitch_deck(user_id: int, answers: List[str], package: 
     return filename
 
 
-# ==================== QOLGAN KODLAR O'ZGARMAYDI ====================
-# [Qolgan barcha handler'lar va funksiyalar yuqoridagi koddan olinadi]
+# ==================== HANDLER'LAR ====================
+
+# VIDEO HANDLER
+@dp.callback_query_handler(lambda c: c.data == "watch_video", state='*')
+async def watch_video_handler(call: types.CallbackQuery):
+    """Video ko'rsatish"""
+    await call.answer()
+
+    try:
+        await bot.send_video(
+            chat_id=call.from_user.id,
+            video=VIDEO_FILE_ID,
+            caption="📹 Professional pitch tayyorlash bo'yicha qo'llanma\n\n✅ Diqqat bilan ko'ring va amal qiling!"
+        )
+    except Exception as e:
+        logger.error(f"Video send error: {e}")
+        await call.message.answer("❌ Video yuborilmadi. Admin bilan bog'laning.")
+
 
 # START HANDLERS
 @dp.callback_query_handler(lambda c: c.data == "start_yes", state='*')
@@ -906,7 +829,8 @@ async def start_yes_handler(call: types.CallbackQuery, state: FSMContext):
 
     text = (
         "📋 Ajoyib! Endi sizga 10 ta savol beraman.\n"
-        "Har biriga javob bering.\n\n"
+        "Har biriga BATAFSIL javob bering.\n\n"
+        "❗ Muhim: Qancha ko'p ma'lumot bersangiz, shuncha yaxshi natija olasiz!\n\n"
         f"{QUESTIONS[0]}"
     )
 
@@ -953,6 +877,9 @@ async def answer_handler(message: types.Message, state: FSMContext):
         await message.answer(summary, reply_markup=package_keyboard())
         await PitchStates.choosing_package.set()
 
+
+# Qolgan handler'lar (package, receipt, admin, cancel, status, help, admin panel)
+# [Yuqoridagi koddan olinadi, o'zgarmaydi]
 
 # PACKAGE HANDLER
 @dp.callback_query_handler(lambda c: c.data.startswith("package_"), state=PitchStates.choosing_package)
@@ -1142,9 +1069,10 @@ async def admin_action_handler(call: types.CallbackQuery):
             caption = (
                 "🎉 Sizning professional Pitch Deck tayyor!\n\n"
                 f"📦 Paket: {package_name}\n"
-                f"✨ AI optimizatsiyasi: {'✅ Aktiv' if USE_OPENAI else '➖ Ochirilgan'}\n"
+                f"✨ AI optimizatsiyasi: {'✅ Maksimal' if USE_OPENAI else '➖ Ochirilgan'}\n"
                 f"🌐 Til: O'zbek tili\n"
-                f"📄 Slaydlar: 9-12 ta\n\n"
+                f"📄 Slaydlar: 10-12 ta\n"
+                f"📊 Bozor tahlillari: ✅ Kiritilgan\n\n"
                 "🚀 Investorlarga muvaffaqiyatlar tilaymiz!\n"
                 "💡 Maslahat: Prezentatsiyani ko'rib chiqing va kerak bo'lsa tahrirlang."
             )
@@ -1173,34 +1101,6 @@ async def admin_action_handler(call: types.CallbackQuery):
                 chat_id=user_id,
                 text="❌ Texnik xatolik yuz berdi. Admin bilan bog'laning: @support"
             )
-
-
-@dp.callback_query_handler(lambda c: c.data == "pptx_tips", state='*')
-async def pptx_tips_handler(call: types.CallbackQuery):
-    await call.answer()  # callback'ga javob
-
-    tips_text = (
-        "📌 PPTX tayyorlash bo'yicha tezkor tavsiyalar:\n\n"
-        "1) Har bir slayd uchun bitta asosiy xabar — ortiqcha matn yozmang.\n"
-        "2) Sarlavha va 3-4 ta bullet point bo'lsin.\n"
-        "3) Vizual — diagramma yoki skrinshot qo'shing (masalan: bozor, moliya, yechim).\n"
-        "4) Rang palitrasi bir xil bo'lsin; kontrast va o'qilishi muhim.\n"
-        "5) Yakuniy CTA (aloqa / investor taklifi) bo'lsin.\n\n"
-        "Quyi tugmadan videoni ko'rish yoki /help orqali batafsil ma'lumot oling."
-    )
-
-    # LOGdan olingan TOG'RI video file_id:
-    file_id = "BAACAgIAAxkBAAIEbWkdva_dB9kNCWcb8DmmDsdGo6AnAALoEgACpRlpSY0jnmDrEDCoNgQ"
-
-    try:
-        # Video yuborish (caption qisqa va parse_mode ishlatmaslik tavsiya etiladi)
-        await bot.send_video(chat_id=call.from_user.id, video=file_id, caption="🎬 PPTX tayyorlash bo'yicha qisqa video")
-    except Exception as e:
-        logger.error(f"pptx_tips: failed to send video: {e}")
-        await call.message.answer(
-            "❌ Video yuborilmadi. Iltimos admindan to'g'ri video file_id ni oling yoki video qayta yuborilsin."
-        )
-
 
 
 # CANCEL HANDLER
@@ -1251,9 +1151,6 @@ async def start_handler(message: types.Message, state: FSMContext):
     db.save_user(user.id, user.username, user.full_name)
     logger.info(f"Start command by user {user.id}")
 
-    # SHU YERGA VIDEO FILE_ID NI QO'YAMIZ (sizda bor bo'lgan video file_id)
-    file_id = "BAACAgIAAxkBAAIEbWkdva_dB9kNCWcb8DmmDsdGo6AnAALoEgACpRlpSY0jnmDrEDCoNgQ"
-
     text = (
         f"👋 Assalomu alaykum, {user.full_name}!\n\n"
         "🎯 Men sizning startup pitch'ingizni tayyorlashga yordam beraman.\n\n"
@@ -1263,21 +1160,15 @@ async def start_handler(message: types.Message, state: FSMContext):
         "3️⃣ Kartaga to'lov qiling\n"
         "4️⃣ Chekni yuboring\n"
         "5️⃣ Professional PPTX oling\n\n"
-        "✨ Barcha prezentatsiyalar O'ZBEK TILIDA!\n"
-        "🤖 AI yordamida optimizatsiya qilinadi!\n\n"
-        "Boshlaysizmi?\n\n"
-
+        "✨ YANGILIKLAR:\n"
+        "• O'zbek tilida to'liq content\n"
+        "• AI bilan maksimal optimizatsiya\n"
+        "• Avtomatik bozor tahlillari\n"
+        "• 10+ slayd batafsil ma'lumot bilan\n\n"
+        "Boshlaysizmi?"
     )
 
-    await bot.send_video(
-            chat_id=message.chat.id,
-            video=file_id,
-            caption="📹 Pitch tayyorlashdan AVVAL va tayyorlayotganingizda ushbu videoni ko'rib chiqishni tavsiya qilamiz.",              # parse_mode bermaymiz, shunchaki oddiy matn
-
-        )
-    await message.answer(text,reply_markup=start_keyboard())
-
-
+    await message.answer(text, reply_markup=start_keyboard())
 
 
 @dp.message_handler(commands=['status'])
