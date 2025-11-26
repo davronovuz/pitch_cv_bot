@@ -1,6 +1,7 @@
 from aiogram import types
 from aiogram.dispatcher.filters.builtin import CommandStart
 from loader import dp, user_db
+from keyboards.default.user_keyboards import main_menu_keyboard  # agar fayl nomi boshqa bo'lsa shu yerda o'zgartir
 
 @dp.message_handler(CommandStart())
 async def bot_start(message: types.Message):
@@ -13,4 +14,10 @@ async def bot_start(message: types.Message):
     else:
         user_db.update_user_last_active(telegram_id=telegram_id)
 
-    await message.answer(f"Salom, {username}!\nWi-Fi parolini olish uchun /getwifi yuboring.")
+    text = (
+        f"Salom, {username}!\n\n"
+        "Men AI yordamida prezentatsiyalar yaratishga yordam beraman.\n"
+        "Quyidagi menyudan kerakli bo'limni tanlang:"
+    )
+
+    await message.answer(text, reply_markup=main_menu_keyboard())
