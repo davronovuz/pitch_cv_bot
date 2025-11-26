@@ -106,12 +106,15 @@ class PresentationWorker:
                     telegram_id,
                     f"⚙️ <b>Content tayyor!</b>\n\n"
                     f"📊 Progress: 30%\n"
-                    f"🎨 Gamma API bilan dizayn qilinmoqda...",
+                    f"🎨 AI bilan dizayn qilinmoqda...",
                     parse_mode='HTML'
                 )
 
             # 2. Gamma API'ga yuborish
-            logger.info(f"🎨 Gamma API: Prezentatsiya yaratish - {task_uuid}")
+            logger.info(f"🎨 AI: Prezentatsiya yaratish - {task_uuid}")
+
+            # Slayd sonini aniqlash
+            slide_count = task_data.get('slide_count', 10)
 
             # Content formatlash
             formatted_text = self.gamma_api.format_content_for_gamma(
@@ -119,39 +122,51 @@ class PresentationWorker:
                 task_type
             )
 
-            # Gamma API'ga yuborish
+            logger.info(f"📝 Formatted text uzunligi: {len(formatted_text)} belgida")
+
+            # Gamma API'ga yuborish (yangi struktura)
             gamma_result = await self.gamma_api.create_presentation_from_text(
-                formatted_text,
-                title=content.get('project_name') or content.get('title', 'Prezentatsiya')
+                text_content=formatted_text,
+                title=content.get('project_name') or content.get('title', 'Prezentatsiya'),
+                num_cards=slide_count,
+                text_mode="generate"
             )
 
             if not gamma_result:
-                raise Exception("Gamma API prezentatsiya yaratilmadi")
+                raise Exception("AI prezentatsiya yaratilmadi")
 
-            document_id = gamma_result.get('document_id')
+            # YANGI: generationId (eski: document_id)
+            generation_id = gamma_result.get('generationId')
+
+            if not generation_id:
+                raise Exception(f"generationId topilmadi: {gamma_result}")
+
+            logger.info(f"✅ Generation ID: {generation_id}")
 
             self.user_db.update_task_status(task_uuid, 'processing', progress=50)
 
             if telegram_id:
                 await self.bot.send_message(
                     telegram_id,
-                    f"⚙️ <b>Gamma API bilan ishlanyapti!</b>\n\n"
+                    f"⚙️ <b>AI  bilan ishlanyapti!</b>\n\n"
                     f"📊 Progress: 50%\n"
+                    f"🔑 Generation ID: <code>{generation_id}</code>\n"
                     f"⏳ Tayyor bo'lishini kutmoqda...",
                     parse_mode='HTML'
                 )
 
-            # 3. Tayyor bo'lishini kutish
-            logger.info(f"⏳ Gamma: Kutilmoqda - {document_id}")
+            # 3. Tayyor bo'lishini kutish (PPTX URL ham!)
+            logger.info(f"⏳ Gamma: Kutilmoqda - {generation_id}")
 
             is_ready = await self.gamma_api.wait_for_completion(
-                document_id,
-                timeout_seconds=300,  # 5 daqiqa
-                check_interval=10
+                generation_id,
+                timeout_seconds=600,  # 10 daqiqa (PPTX uchun ko'proq vaqt)
+                check_interval=10,
+                wait_for_pptx=True  # PPTX URL tayyor bo'lishini ham kutamiz
             )
 
             if not is_ready:
-                raise Exception("Gamma API timeout yoki xato")
+                raise Exception("AI  timeout yoki xato")
 
             self.user_db.update_task_status(task_uuid, 'processing', progress=80)
 
@@ -165,14 +180,14 @@ class PresentationWorker:
                 )
 
             # 4. PPTX yuklab olish
-            logger.info(f"📥 Gamma: PPTX yuklab olish - {document_id}")
+            logger.info(f"📥 Gamma: PPTX yuklab olish - {generation_id}")
 
             # Fayl yo'lini aniqlash
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"presentation_{task_type}_{user_id}_{timestamp}.pptx"
             output_path = f"/tmp/{filename}"
 
-            download_success = await self.gamma_api.download_pptx(document_id, output_path)
+            download_success = await self.gamma_api.download_pptx(generation_id, output_path)
 
             if not download_success or not os.path.exists(output_path):
                 raise Exception("PPTX yuklab olinmadi")
@@ -248,7 +263,6 @@ Muvaffaqiyatlar! 🚀
                 try:
                     await self.bot.send_message(
                         telegram_id,
-                        f"❌ <b>Xatolik yuz berdi!</b>\n\n"
                         f"🔑 Task ID: <code>{task_uuid}</code>\n"
                         f"⚠️ Xato: {str(e)}\n\n"
                         f"Iltimos, qaytadan urinib ko'ring yoki support bilan bog'laning.",
