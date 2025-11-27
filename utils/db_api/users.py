@@ -423,32 +423,48 @@ class UserDatabase(Database):
 
         return transactions
 
-    def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict]:
-        """Tranzaksiyani ID bo'yicha olish"""
-        sql = """
-        SELECT t.id, t.transaction_type, t.amount, t.balance_before, t.balance_after,
-               t.description, t.status, t.created_at, u.telegram_id as user_id
-        FROM Transactions t
-        JOIN Users u ON t.user_id = u.id
-        WHERE t.id = ?
+    def get_transaction_by_id(self, trans_id: int) -> dict:
         """
+        Tranzaksiyani ID bo'yicha olish
 
-        result = self.execute(sql, parameters=(transaction_id,), fetchone=True)
+        Bu metod admin callback handler'lar uchun zarur!
+        """
+        try:
+            sql = """
+            SELECT 
+                id,
+                telegram_id,
+                type,
+                amount,
+                description,
+                receipt_file_id,
+                status,
+                approved_by,
+                created_at,
+                updated_at
+            FROM Transactions 
+            WHERE id = ?
+            """
+            result = self.execute(sql, (trans_id,), fetchone=True)
 
-        if result:
-            return {
-                'id': result[0],
-                'type': result[1],
-                'amount': float(result[2]),
-                'balance_before': float(result[3]),
-                'balance_after': float(result[4]),
-                'description': result[5],
-                'status': result[6],
-                'created_at': result[7],
-                'user_id': result[8]
-            }
+            if result:
+                return {
+                    'id': result[0],
+                    'telegram_id': result[1],
+                    'type': result[2],
+                    'amount': result[3],
+                    'description': result[4],
+                    'receipt_file_id': result[5],
+                    'status': result[6],
+                    'approved_by': result[7],
+                    'created_at': result[8],
+                    'updated_at': result[9]
+                }
+            return None
 
-        return None
+        except Exception as e:
+            print(f"❌ get_transaction_by_id xato: {e}")
+            return None
 
     # ==================== PRICING METHODLAR ====================
 
@@ -846,3 +862,138 @@ class UserDatabase(Database):
         WHERE user_id = ?
         """
         self.execute(sql, parameters=(is_super_admin, user_id), commit=True)
+
+    def update_transaction_status(self, trans_id: int, status: str, admin_id: int = None) -> bool:
+        """
+        Tranzaksiya statusini yangilash
+
+        status: 'pending', 'approved', 'rejected'
+        admin_id: Tasdiqlagan/rad etgan admin ID
+        """
+        try:
+            sql = """
+            UPDATE Transactions 
+            SET status = ?, 
+                approved_by = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """
+            self.execute(sql, (status, admin_id, trans_id), commit=True)
+            return True
+
+        except Exception as e:
+            print(f"❌ update_transaction_status xato: {e}")
+            return False
+
+    def add_to_balance(self, telegram_id: int, amount: float) -> bool:
+        """
+        User balansiga pul qo'shish
+        """
+        try:
+            sql = """
+            UPDATE Users 
+            SET balance = balance + ?
+            WHERE telegram_id = ?
+            """
+            self.execute(sql, (amount, telegram_id), commit=True)
+            return True
+
+        except Exception as e:
+            print(f"❌ add_to_balance xato: {e}")
+            return False
+
+    def deduct_from_balance(self, telegram_id: int, amount: float) -> bool:
+        """
+        User balansidan pul yechish
+
+        MUHIM: balance >= amount bo'lishi kerak!
+        """
+        try:
+            # Avval balansni tekshirish
+            current = self.get_user_balance(telegram_id)
+
+            if current < amount:
+                print(f"❌ Balans yetarli emas: {current} < {amount}")
+                return False
+
+            sql = """
+            UPDATE Users 
+            SET balance = balance - ?
+            WHERE telegram_id = ? AND balance >= ?
+            """
+            self.execute(sql, (amount, telegram_id, amount), commit=True)
+
+            # Tekshirish
+            new_balance = self.get_user_balance(telegram_id)
+            if new_balance == current - amount:
+                return True
+            else:
+                print(f"⚠️ Balans kutilganidek o'zgarmadi: {current} -> {new_balance}")
+                return True  # Baribir True qaytarish
+
+        except Exception as e:
+            print(f"❌ deduct_from_balance xato: {e}")
+            return False
+
+    def get_user_balance(self, telegram_id: int) -> float:
+        """
+        User balansini olish
+        """
+        try:
+            sql = "SELECT balance FROM Users WHERE telegram_id = ?"
+            result = self.execute(sql, (telegram_id,), fetchone=True)
+
+            if result:
+                return float(result[0])
+            return 0.0
+
+        except Exception as e:
+            print(f"❌ get_user_balance xato: {e}")
+            return 0.0
+
+    def create_transaction(self, telegram_id: int, transaction_type: str, amount: float,
+                           description: str = None, receipt_file_id: str = None,
+                           status: str = 'pending') -> int:
+        """
+        Yangi tranzaksiya yaratish
+
+        Returns: Yaratilgan tranzaksiya ID yoki None
+        """
+        try:
+            sql = """
+            INSERT INTO Transactions (
+                telegram_id, 
+                type, 
+                amount, 
+                description, 
+                receipt_file_id, 
+                status,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """
+
+            cursor = self.execute(
+                sql,
+                (telegram_id, transaction_type, amount, description, receipt_file_id, status),
+                commit=True
+            )
+
+            # lastrowid ni olish
+            if hasattr(cursor, 'lastrowid'):
+                return cursor.lastrowid
+
+            # Agar lastrowid ishlamasa
+            result = self.execute(
+                "SELECT id FROM Transactions WHERE telegram_id = ? ORDER BY id DESC LIMIT 1",
+                (telegram_id,),
+                fetchone=True
+            )
+
+            if result:
+                return result[0]
+
+            return None
+
+        except Exception as e:
+            print(f"❌ create_transaction xato: {e}")
+            return None

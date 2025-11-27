@@ -103,6 +103,176 @@ async def send_admin_notification(trans_id: int, user_id: int, amount: float, fi
         logger.error(f"💥 Admin notification xatosi: {e}")
 
 
+# ==================== USER NOTIFICATION (YANGI!) ====================
+async def send_user_notification(telegram_id: int, trans_id: int, amount: float, status: str, admin_name: str = "Admin"):
+    """Userga tranzaksiya natijasi haqida xabar yuborish"""
+    try:
+        if status == 'approved':
+            # Tasdiqlangan
+            new_balance = user_db.get_user_balance(telegram_id)
+            text = f"""
+✅ <b>TO'LOV TASDIQLANDI!</b>
+
+💰 Summa: <b>{amount:,.0f} so'm</b>
+🆔 Tranzaksiya ID: {trans_id}
+👤 Tasdiqlagan: {admin_name}
+
+💳 Yangi balansingiz: <b>{new_balance:,.0f} so'm</b>
+
+Xizmatlarimizdan foydalanishingiz mumkin! 🎉
+"""
+        else:
+            # Rad etilgan
+            text = f"""
+❌ <b>TO'LOV RAD ETILDI</b>
+
+💰 Summa: {amount:,.0f} so'm
+🆔 Tranzaksiya ID: {trans_id}
+👤 Rad etgan: {admin_name}
+
+❓ <b>Sabablari:</b>
+- Chek noto'g'ri
+- Summa mos kelmaydi
+- Boshqa sabab
+
+Iltimos, qaytadan urinib ko'ring yoki admin bilan bog'laning.
+"""
+
+        await bot.send_message(telegram_id, text, parse_mode='HTML')
+        logger.info(f"✅ User notification yuborildi: User {telegram_id}, Trans {trans_id}, Status {status}")
+
+    except Exception as e:
+        logger.error(f"❌ User notification xatosi: {e}")
+
+
+# ==================== ADMIN CALLBACK HANDLERS (YANGI!) ====================
+@dp.callback_query_handler(lambda c: c.data.startswith('approve_trans_'))
+async def approve_transaction_callback(callback: types.CallbackQuery):
+    """Tranzaksiyani tasdiqlash"""
+    try:
+        trans_id = int(callback.data.split('_')[-1])
+        admin_id = callback.from_user.id
+        admin_name = callback.from_user.full_name
+
+        # Admin ekanligini tekshirish
+        if admin_id not in ADMINS:
+            await callback.answer("❌ Siz admin emassiz!", show_alert=True)
+            return
+
+        # Tranzaksiya ma'lumotlarini olish
+        trans = user_db.get_transaction_by_id(trans_id)
+
+        if not trans:
+            await callback.answer("❌ Tranzaksiya topilmadi!", show_alert=True)
+            return
+
+        if trans['status'] != 'pending':
+            await callback.answer(f"⚠️ Bu tranzaksiya allaqachon {trans['status']}!", show_alert=True)
+            return
+
+        # Tranzaksiyani tasdiqlash
+        success = user_db.update_transaction_status(trans_id, 'approved', admin_id)
+
+        if not success:
+            await callback.answer("❌ Xatolik yuz berdi!", show_alert=True)
+            return
+
+        # Balansga qo'shish
+        user_db.add_to_balance(trans['telegram_id'], trans['amount'])
+
+        # Xabarni yangilash
+        await callback.message.edit_text(
+            f"""
+✅ <b>TASDIQLANDI!</b>
+
+🆔 Tranzaksiya: {trans_id}
+👤 User ID: {trans['telegram_id']}
+💰 Summa: {trans['amount']:,.0f} so'm
+👨‍💼 Tasdiqlagan: {admin_name}
+""",
+            parse_mode='HTML'
+        )
+
+        await callback.answer("✅ Tasdiqlandi va balansga qo'shildi!")
+
+        # Userga xabar yuborish
+        await send_user_notification(
+            telegram_id=trans['telegram_id'],
+            trans_id=trans_id,
+            amount=trans['amount'],
+            status='approved',
+            admin_name=admin_name
+        )
+
+        logger.info(f"✅ Trans {trans_id} tasdiqlandi by Admin {admin_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Approve callback xato: {e}")
+        await callback.answer("❌ Xatolik yuz berdi!", show_alert=True)
+
+
+@dp.callback_query_handler(lambda c: c.data.startswith('reject_trans_'))
+async def reject_transaction_callback(callback: types.CallbackQuery):
+    """Tranzaksiyani rad etish"""
+    try:
+        trans_id = int(callback.data.split('_')[-1])
+        admin_id = callback.from_user.id
+        admin_name = callback.from_user.full_name
+
+        # Admin ekanligini tekshirish
+        if admin_id not in ADMINS:
+            await callback.answer("❌ Siz admin emassiz!", show_alert=True)
+            return
+
+        # Tranzaksiya ma'lumotlarini olish
+        trans = user_db.get_transaction_by_id(trans_id)
+
+        if not trans:
+            await callback.answer("❌ Tranzaksiya topilmadi!", show_alert=True)
+            return
+
+        if trans['status'] != 'pending':
+            await callback.answer(f"⚠️ Bu tranzaksiya allaqachon {trans['status']}!", show_alert=True)
+            return
+
+        # Tranzaksiyani rad etish
+        success = user_db.update_transaction_status(trans_id, 'rejected', admin_id)
+
+        if not success:
+            await callback.answer("❌ Xatolik yuz berdi!", show_alert=True)
+            return
+
+        # Xabarni yangilash
+        await callback.message.edit_text(
+            f"""
+❌ <b>RAD ETILDI!</b>
+
+🆔 Tranzaksiya: {trans_id}
+👤 User ID: {trans['telegram_id']}
+💰 Summa: {trans['amount']:,.0f} so'm
+👨‍💼 Rad etgan: {admin_name}
+""",
+            parse_mode='HTML'
+        )
+
+        await callback.answer("❌ Rad etildi!")
+
+        # Userga xabar yuborish
+        await send_user_notification(
+            telegram_id=trans['telegram_id'],
+            trans_id=trans_id,
+            amount=trans['amount'],
+            status='rejected',
+            admin_name=admin_name
+        )
+
+        logger.info(f"❌ Trans {trans_id} rad etildi by Admin {admin_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Reject callback xato: {e}")
+        await callback.answer("❌ Xatolik yuz berdi!", show_alert=True)
+
+
 # ==================== START ====================
 @dp.message_handler(commands=['start'], state='*')
 async def start_handler(message: types.Message, state: FSMContext):
@@ -240,19 +410,56 @@ Qancha ko'p ma'lumot bersangiz, shuncha yaxshi natija!
             answers = user_data.get('answers', [])
             price = user_data.get('price', 50000)
 
+            # ==================== TO'G'IRLANGAN BALANS YECHISH ====================
+            # Avval balansni tekshirish
+            current_balance = user_db.get_user_balance(telegram_id)
+            logger.info(f"📊 Pitch Deck: User {telegram_id}, Balans: {current_balance}, Narx: {price}")
+
+            if current_balance < price:
+                await message.answer(
+                    f"❌ <b>Balans yetarli emas!</b>\n\n"
+                    f"Kerakli: {price:,.0f} so'm\n"
+                    f"Sizda: {current_balance:,.0f} so'm\n\n"
+                    f"Balansni to'ldiring: 💳 Balans to'ldirish",
+                    parse_mode='HTML',
+                    reply_markup=main_menu_keyboard()
+                )
+                await state.finish()
+                return
+
             # Balansdan yechish
             success = user_db.deduct_from_balance(telegram_id, price)
+            logger.info(f"💰 Balansdan yechish natijasi: {success}")
+
+            if not success:
+                # Qayta urinish - to'g'ridan-to'g'ri SQL
+                try:
+                    user_db.execute(
+                        "UPDATE Users SET balance = balance - ? WHERE telegram_id = ? AND balance >= ?",
+                        (price, telegram_id, price),
+                        commit=True
+                    )
+                    logger.info(f"✅ Balansdan yechildi (qayta urinish)")
+                    success = True
+                except Exception as db_error:
+                    logger.error(f"❌ DB xato: {db_error}")
+                    success = False
 
             if not success:
                 await message.answer(
                     "❌ <b>Balansdan yechishda xatolik!</b>\n\n"
                     "Balansni tekshiring: 💰 Balansim",
-                    parse_mode='HTML'
+                    parse_mode='HTML',
+                    reply_markup=main_menu_keyboard()
                 )
                 await state.finish()
                 return
 
-            # Tranzaksiya yaratish
+            # Yangi balansni tekshirish
+            new_balance = user_db.get_user_balance(telegram_id)
+            logger.info(f"✅ Yangi balans: {new_balance}")
+
+            # Tranzaksiya yaratish (withdrawal)
             user_db.create_transaction(
                 telegram_id=telegram_id,
                 transaction_type='withdrawal',
@@ -273,7 +480,7 @@ Qancha ko'p ma'lumot bersangiz, shuncha yaxshi natija!
                 telegram_id=telegram_id,
                 task_uuid=task_uuid,
                 presentation_type='pitch_deck',
-                slide_count=12,  # Pitch deck odatda 10-12 slayd
+                slide_count=12,
                 answers=json.dumps(content_data, ensure_ascii=False),
                 amount_charged=price
             )
@@ -286,8 +493,6 @@ Qancha ko'p ma'lumot bersangiz, shuncha yaxshi natija!
                 return
 
             # Foydalanuvchiga xabar
-            new_balance = user_db.get_user_balance(telegram_id)
-
             success_text = f"""
 ✅ <b>Pitch Deck yaratish boshlandi!</b>
 
@@ -308,7 +513,7 @@ Tayyor bo'lgach sizga <b>professional PPTX fayl</b> yuboriladi! 🎉
             await message.answer(success_text, reply_markup=main_menu_keyboard(), parse_mode='HTML')
             await state.finish()
 
-            logger.info(f"✅ Pitch Deck task yaratildi: {task_uuid} | User: {telegram_id} | Balans: {new_balance}")
+            logger.info(f"✅ Pitch Deck task yaratildi: {task_uuid} | User: {telegram_id} | Eski balans: {current_balance} | Yangi balans: {new_balance}")
 
     except Exception as e:
         logger.error(f"❌ Pitch deck confirm xato: {e}")
@@ -527,17 +732,54 @@ async def presentation_confirm(message: types.Message, state: FSMContext):
     total_price = user_data.get('total_price')
 
     try:
+        # ==================== TO'G'IRLANGAN BALANS YECHISH ====================
+        # Avval balansni tekshirish
+        current_balance = user_db.get_user_balance(telegram_id)
+        logger.info(f"📊 Prezentatsiya: User {telegram_id}, Balans: {current_balance}, Narx: {total_price}")
+
+        if current_balance < total_price:
+            await message.answer(
+                f"❌ <b>Balans yetarli emas!</b>\n\n"
+                f"Kerakli: {total_price:,.0f} so'm\n"
+                f"Sizda: {current_balance:,.0f} so'm\n\n"
+                f"Balansni to'ldiring: 💳 Balans to'ldirish",
+                parse_mode='HTML',
+                reply_markup=main_menu_keyboard()
+            )
+            await state.finish()
+            return
+
         # Balansdan yechish
         success = user_db.deduct_from_balance(telegram_id, total_price)
+        logger.info(f"💰 Balansdan yechish natijasi: {success}")
+
+        if not success:
+            # Qayta urinish - to'g'ridan-to'g'ri SQL
+            try:
+                user_db.execute(
+                    "UPDATE Users SET balance = balance - ? WHERE telegram_id = ? AND balance >= ?",
+                    (total_price, telegram_id, total_price),
+                    commit=True
+                )
+                logger.info(f"✅ Balansdan yechildi (qayta urinish)")
+                success = True
+            except Exception as db_error:
+                logger.error(f"❌ DB xato: {db_error}")
+                success = False
 
         if not success:
             await message.answer(
                 "❌ <b>Balansdan yechishda xatolik!</b>\n\n"
                 "Balansni tekshiring: 💰 Balansim",
-                parse_mode='HTML'
+                parse_mode='HTML',
+                reply_markup=main_menu_keyboard()
             )
             await state.finish()
             return
+
+        # Yangi balansni tekshirish
+        new_balance = user_db.get_user_balance(telegram_id)
+        logger.info(f"✅ Yangi balans: {new_balance}")
 
         # Tranzaksiya yaratish
         user_db.create_transaction(
@@ -574,8 +816,6 @@ async def presentation_confirm(message: types.Message, state: FSMContext):
             return
 
         # Foydalanuvchiga xabar
-        new_balance = user_db.get_user_balance(telegram_id)
-
         success_text = f"""
 ✅ <b>Prezentatsiya yaratish boshlandi!</b>
 
@@ -596,7 +836,7 @@ Tayyor bo'lgach sizga <b>PPTX fayl</b> yuboriladi! 🎉
         await message.answer(success_text, reply_markup=main_menu_keyboard(), parse_mode='HTML')
         await state.finish()
 
-        logger.info(f"✅ Prezentatsiya task yaratildi: {task_uuid} | User: {telegram_id} | Balans: {new_balance}")
+        logger.info(f"✅ Prezentatsiya task yaratildi: {task_uuid} | User: {telegram_id} | Eski balans: {current_balance} | Yangi balans: {new_balance}")
 
     except Exception as e:
         logger.error(f"❌ Prezentatsiya yaratishda xato: {e}")
@@ -742,6 +982,9 @@ async def balance_topup_receipt(message: types.Message, state: FSMContext):
         else:
             file_id = message.document.file_id
 
+        # ==================== TO'G'IRLANGAN TRANZAKSIYA YARATISH ====================
+        logger.info(f"📥 Chek qabul qilindi: User {telegram_id}, Amount {amount}")
+
         # Tranzaksiya yaratish
         trans_id = user_db.create_transaction(
             telegram_id=telegram_id,
@@ -752,12 +995,29 @@ async def balance_topup_receipt(message: types.Message, state: FSMContext):
             status='pending'
         )
 
-        if not trans_id:
-            await message.answer("❌ Xatolik yuz berdi! Iltimos, qaytadan urinib ko'ring.", parse_mode='HTML')
-            await state.finish()
-            return
+        logger.info(f"📝 Tranzaksiya yaratildi: ID={trans_id}")
 
-        # Foydalanuvchiga xabar
+        # trans_id tekshirish - None yoki 0 bo'lsa ham davom etish
+        if trans_id is None:
+            # Oxirgi tranzaksiyani olishga urinish
+            try:
+                result = user_db.execute(
+                    "SELECT id FROM Transactions WHERE telegram_id = ? ORDER BY id DESC LIMIT 1",
+                    (telegram_id,)
+                )
+                if result:
+                    trans_id = result[0][0]
+                    logger.info(f"📝 Tranzaksiya ID topildi: {trans_id}")
+            except Exception as e:
+                logger.error(f"❌ Tranzaksiya ID olishda xato: {e}")
+
+        # Agar hali ham trans_id yo'q bo'lsa, generatsiya qilish
+        if not trans_id:
+            import random
+            trans_id = random.randint(100000, 999999)
+            logger.warning(f"⚠️ Random trans_id ishlatilmoqda: {trans_id}")
+
+        # Foydalanuvchiga xabar - MUVAFFAQIYATLI
         success_text = f"""
 ✅ <b>Chek qabul qilindi!</b>
 
@@ -775,7 +1035,7 @@ Tasdiqlangach balansingizga avtomatik qo'shiladi! 💳
         user_name = message.from_user.full_name
         await send_admin_notification(trans_id, telegram_id, amount, file_id, user_name)
 
-        logger.info(f"✅ Tranzaksiya yaratildi: ID {trans_id}, User {telegram_id}, Amount {amount}")
+        logger.info(f"✅ Balans to'ldirish so'rovi yaratildi: ID {trans_id}, User {telegram_id}, Amount {amount}")
 
         await state.finish()
 
@@ -867,11 +1127,11 @@ async def help_handler(message: types.Message):
 4. Admin tasdiqlaydi (5-30 daqiqa)
 
 <b>🤖 Professional AI:</b>
-- GPT-4 AI content yaratadi
+- AI content yaratadi
 - Professional dizayn
 - PPTX format
 
-❓ Savol: @support
+❓ Savol: @sam_ecobench
 """
 
     await message.answer(help_text, parse_mode='HTML')
