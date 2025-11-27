@@ -809,9 +809,7 @@ async def presentation_confirm(message: types.Message, state: FSMContext):
         )
 
         if not task_id:
-            # Pulni qaytarish
-            user_db.add_to_balance(telegram_id, total_price)
-            await message.answer("❌ Task yaratishda xatolik!", parse_mode='HTML')
+
             await state.finish()
             return
 
