@@ -53,14 +53,17 @@ class GammaAPI:
             "accept": "application/json"
         }
 
-        # Official API payload struktura + PPTX export
+        # Official API payload struktura + PPTX export + O'ZBEK TILI
         payload = {
             "inputText": text_content,
             "textMode": text_mode,
             "format": "presentation",
             "numCards": num_cards,
             "cardSplit": "auto",
-            "exportAs": "pptx"  # PPTX formatda yuklab olish uchun
+            "exportAs": "pptx",  # PPTX formatda yuklab olish uchun
+            "textOptions": {
+                "language": "uz"  # ✅ O'ZBEK TILIDA YARATISH
+            }
         }
 
         try:

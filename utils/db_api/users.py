@@ -341,10 +341,12 @@ class UserDatabase(Database):
             print(f"Tranzaksiyani tasdiqlashda xato: {e}")
             return False
 
-    def reject_transaction(self, transaction_id: int, admin_telegram_id: int) -> bool:
+    def reject_transaction(self, transaction_id: int, admin_telegram_id: int = None) -> bool:
         """Tranzaksiyani rad etish"""
         try:
-            admin_id = self.get_user_id(admin_telegram_id)
+            admin_id = None
+            if admin_telegram_id:
+                admin_id = self.get_user_id(admin_telegram_id)
 
             sql = """
             UPDATE Transactions
@@ -420,6 +422,33 @@ class UserDatabase(Database):
             })
 
         return transactions
+
+    def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict]:
+        """Tranzaksiyani ID bo'yicha olish"""
+        sql = """
+        SELECT t.id, t.transaction_type, t.amount, t.balance_before, t.balance_after,
+               t.description, t.status, t.created_at, u.telegram_id as user_id
+        FROM Transactions t
+        JOIN Users u ON t.user_id = u.id
+        WHERE t.id = ?
+        """
+
+        result = self.execute(sql, parameters=(transaction_id,), fetchone=True)
+
+        if result:
+            return {
+                'id': result[0],
+                'type': result[1],
+                'amount': float(result[2]),
+                'balance_before': float(result[3]),
+                'balance_after': float(result[4]),
+                'description': result[5],
+                'status': result[6],
+                'created_at': result[7],
+                'user_id': result[8]
+            }
+
+        return None
 
     # ==================== PRICING METHODLAR ====================
 

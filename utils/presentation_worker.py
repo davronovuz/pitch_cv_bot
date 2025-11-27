@@ -70,10 +70,11 @@ class PresentationWorker:
                 await asyncio.sleep(10)
 
     async def _process_task(self, task_data: dict):
-        """Bitta taskni qayta ishlash"""
+        """Bitta taskni qayta ishlash - PROFESSIONAL VERSION"""
         task_uuid = task_data.get('task_uuid')
         task_type = task_data.get('type')
         user_id = task_data.get('user_id')
+        progress_message_id = None  # Bitta xabarni update qilish uchun
 
         try:
             logger.info(f"🎯 Task boshlandi: {task_uuid} (Type: {task_type})")
@@ -81,16 +82,21 @@ class PresentationWorker:
             # Status'ni 'processing' ga o'zgartirish
             self.user_db.update_task_status(task_uuid, 'processing', progress=5)
 
-            # User'ga xabar berish
+            # User'ga BITTA xabar - keyinchalik update qilamiz
             telegram_id = self._get_telegram_id(user_id)
             if telegram_id:
-                await self.bot.send_message(
+                msg = await self.bot.send_message(
                     telegram_id,
-                    f"⚙️ <b>Prezentatsiya yaratilmoqda...</b>\n\n"
-                    f"🔑 Task ID: <code>{task_uuid}</code>\n"
-                    f"📊 Progress: 5%",
+                    f"🎨 <b>Prezentatsiya yaratilmoqda...</b>\n\n"
+                    f"⏳ <b>Jarayon:</b>\n"
+                    f"1️⃣ ⚙️ Kontent tayyorlanmoqda...\n"
+                    f"2️⃣ ⏸ Dizayn kutilmoqda\n"
+                    f"3️⃣ ⏸ Formatlash\n"
+                    f"4️⃣ ⏸ Tayyor!\n\n"
+                    f"📊 <b>Progress:</b> ▰▱▱▱▱▱▱▱▱▱ 5%",
                     parse_mode='HTML'
                 )
+                progress_message_id = msg.message_id
 
             # 1. OpenAI bilan content yaratish
             logger.info(f"📝 OpenAI: Content yaratish - {task_uuid}")
@@ -101,17 +107,26 @@ class PresentationWorker:
 
             self.user_db.update_task_status(task_uuid, 'processing', progress=30)
 
-            if telegram_id:
-                await self.bot.send_message(
-                    telegram_id,
-                    f"⚙️ <b>Content tayyor!</b>\n\n"
-                    f"📊 Progress: 30%\n"
-                    f"🎨 AI bilan dizayn qilinmoqda...",
-                    parse_mode='HTML'
-                )
+            # UPDATE qilamiz
+            if telegram_id and progress_message_id:
+                try:
+                    await self.bot.edit_message_text(
+                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>\n\n"
+                        f"⏳ <b>Jarayon:</b>\n"
+                        f"1️⃣ ✅ Kontent tayyor\n"
+                        f"2️⃣ ⚙️ Professional dizayn qilinmoqda...\n"
+                        f"3️⃣ ⏸ Formatlash\n"
+                        f"4️⃣ ⏸ Tayyor!\n\n"
+                        f"📊 <b>Progress:</b> ▰▰▰▱▱▱▱▱▱▱ 30%",
+                        telegram_id,
+                        progress_message_id,
+                        parse_mode='HTML'
+                    )
+                except:
+                    pass
 
-            # 2. Gamma API'ga yuborish
-            logger.info(f"🎨 AI: Prezentatsiya yaratish - {task_uuid}")
+            # 2. Professional AI bilan prezentatsiya yaratish
+            logger.info(f"🎨 Professional AI: Prezentatsiya yaratish - {task_uuid}")
 
             # Slayd sonini aniqlash
             slide_count = task_data.get('slide_count', 10)
@@ -124,63 +139,79 @@ class PresentationWorker:
 
             logger.info(f"📝 Formatted text uzunligi: {len(formatted_text)} belgida")
 
-            # Gamma API'ga yuborish (yangi struktura)
-            gamma_result = await self.gamma_api.create_presentation_from_text(
+            # Professional AI'ga yuborish
+            ai_result = await self.gamma_api.create_presentation_from_text(
                 text_content=formatted_text,
                 title=content.get('project_name') or content.get('title', 'Prezentatsiya'),
                 num_cards=slide_count,
                 text_mode="generate"
             )
 
-            if not gamma_result:
-                raise Exception("AI prezentatsiya yaratilmadi")
+            if not ai_result:
+                raise Exception("Professional AI prezentatsiya yaratilmadi")
 
-            # YANGI: generationId (eski: document_id)
-            generation_id = gamma_result.get('generationId')
+            generation_id = ai_result.get('generationId')
 
             if not generation_id:
-                raise Exception(f"generationId topilmadi: {gamma_result}")
+                raise Exception(f"generationId topilmadi: {ai_result}")
 
             logger.info(f"✅ Generation ID: {generation_id}")
 
             self.user_db.update_task_status(task_uuid, 'processing', progress=50)
 
-            if telegram_id:
-                await self.bot.send_message(
-                    telegram_id,
-                    f"⚙️ <b>AI  bilan ishlanyapti!</b>\n\n"
-                    f"📊 Progress: 50%\n"
-                    f"🔑 Generation ID: <code>{generation_id}</code>\n"
-                    f"⏳ Tayyor bo'lishini kutmoqda...",
-                    parse_mode='HTML'
-                )
+            # UPDATE
+            if telegram_id and progress_message_id:
+                try:
+                    await self.bot.edit_message_text(
+                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>\n\n"
+                        f"⏳ <b>Jarayon:</b>\n"
+                        f"1️⃣ ✅ Kontent tayyor\n"
+                        f"2️⃣ ✅ Dizayn boshlandi\n"
+                        f"3️⃣ ⚙️ Professional formatlash...\n"
+                        f"4️⃣ ⏸ Tayyor!\n\n"
+                        f"📊 <b>Progress:</b> ▰▰▰▰▰▱▱▱▱▱ 50%",
+                        telegram_id,
+                        progress_message_id,
+                        parse_mode='HTML'
+                    )
+                except:
+                    pass
 
             # 3. Tayyor bo'lishini kutish (PPTX URL ham!)
-            logger.info(f"⏳ Gamma: Kutilmoqda - {generation_id}")
+            logger.info(f"⏳ Kutilmoqda - {generation_id}")
 
             is_ready = await self.gamma_api.wait_for_completion(
                 generation_id,
-                timeout_seconds=600,  # 10 daqiqa (PPTX uchun ko'proq vaqt)
+                timeout_seconds=600,  # 10 daqiqa
                 check_interval=10,
-                wait_for_pptx=True  # PPTX URL tayyor bo'lishini ham kutamiz
+                wait_for_pptx=True
             )
 
             if not is_ready:
-                raise Exception("AI  timeout yoki xato")
+                raise Exception("Professional AI timeout yoki xato")
 
             self.user_db.update_task_status(task_uuid, 'processing', progress=80)
 
-            if telegram_id:
-                await self.bot.send_message(
-                    telegram_id,
-                    f"✅ <b>Prezentatsiya tayyor!</b>\n\n"
-                    f"📊 Progress: 80%\n"
-                    f"📥 PPTX yuklab olinyapti...",
-                    parse_mode='HTML'
-                )
+            # UPDATE
+            if telegram_id and progress_message_id:
+                try:
+                    await self.bot.edit_message_text(
+                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>\n\n"
+                        f"⏳ <b>Jarayon:</b>\n"
+                        f"1️⃣ ✅ Kontent tayyor\n"
+                        f"2️⃣ ✅ Dizayn tayyor\n"
+                        f"3️⃣ ✅ Formatlash tugadi\n"
+                        f"4️⃣ ⚙️ Yuklab olinyapti...\n\n"
+                        f"📊 <b>Progress:</b> ▰▰▰▰▰▰▰▰▱▱ 80%",
+                        telegram_id,
+                        progress_message_id,
+                        parse_mode='HTML'
+                    )
+                except:
+                    pass
 
             # 4. PPTX yuklab olish
-            logger.info(f"📥 Gamma: PPTX yuklab olish - {generation_id}")
+            logger.info(f"📥 PPTX yuklab olish - {generation_id}")
 
             # Fayl yo'lini aniqlash
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -199,19 +230,37 @@ class PresentationWorker:
                 file_path=output_path
             )
 
-            # 5. User'ga yuborish
+            # UPDATE - OXIRGI
+            if telegram_id and progress_message_id:
+                try:
+                    await self.bot.edit_message_text(
+                        f"🎉 <b>Prezentatsiya tayyor!</b>\n\n"
+                        f"⏳ <b>Jarayon:</b>\n"
+                        f"1️⃣ ✅ Kontent tayyor\n"
+                        f"2️⃣ ✅ Dizayn tayyor\n"
+                        f"3️⃣ ✅ Formatlash tugadi\n"
+                        f"4️⃣ ✅ Tayyor!\n\n"
+                        f"📊 <b>Progress:</b> ▰▰▰▰▰▰▰▰▰▰ 100%",
+                        telegram_id,
+                        progress_message_id,
+                        parse_mode='HTML'
+                    )
+                except:
+                    pass
+
+            # 5. User'ga PPTX yuborish
             logger.info(f"📤 User'ga yuborish - {telegram_id}")
 
             if telegram_id:
                 try:
                     with open(output_path, 'rb') as f:
+                        type_name = "Pitch Deck" if task_type == 'pitch_deck' else "Prezentatsiya"
                         caption = f"""
-🎉 <b>Sizning prezentatsiyangiz tayyor!</b>
+🎉 <b>Sizning {type_name} tayyor!</b>
 
-🔑 Task ID: <code>{task_uuid}</code>
-📦 Turi: {task_type}
-✨ AI optimizatsiyasi: ✅
-🎨 Professional dizayn: ✅
+✨ Professional AI content
+🎨 Zamonaviy dizayn
+📊 To'liq formatlangan
 
 Muvaffaqiyatlar! 🚀
 """
@@ -237,7 +286,7 @@ Muvaffaqiyatlar! 🚀
                 file_path=output_path
             )
 
-            # 7. Temporary faylni o'chirish (ixtiyoriy)
+            # 7. Temporary faylni o'chirish
             try:
                 if os.path.exists(output_path):
                     os.remove(output_path)
@@ -257,15 +306,50 @@ Muvaffaqiyatlar! 🚀
                 error_message=str(e)
             )
 
+            # IMPORTANT: Balansni AVTOMATIK qaytarish
+            try:
+                task_info = self.user_db.get_task_by_uuid(task_uuid)
+                if task_info and task_info.get('amount_charged'):
+                    amount_charged = task_info['amount_charged']
+
+                    # Balansni qaytarish
+                    telegram_id = self._get_telegram_id(user_id)
+                    self.user_db.add_to_balance(telegram_id, amount_charged)
+
+                    # Refund tranzaksiya yaratish
+                    self.user_db.create_transaction(
+                        telegram_id=telegram_id,
+                        transaction_type='refund',
+                        amount=amount_charged,
+                        description=f'Xatolik - avtomatik qaytarildi',
+                        status='approved'
+                    )
+
+                    logger.info(f"💰 Balans qaytarildi: {amount_charged} so'm - User {telegram_id}")
+            except Exception as refund_error:
+                logger.error(f"❌ Balans qaytarishda xato: {refund_error}")
+
             # User'ga xabar berish
             telegram_id = self._get_telegram_id(user_id)
             if telegram_id:
                 try:
+                    refund_text = ""
+                    try:
+                        task_info = self.user_db.get_task_by_uuid(task_uuid)
+                        if task_info and task_info.get('amount_charged'):
+                            amount_charged = task_info['amount_charged']
+                            new_balance = self.user_db.get_user_balance(telegram_id)
+                            refund_text = f"\n💰 <b>Balansga qaytarildi:</b> {amount_charged:,.0f} so'm\n💳 <b>Yangi balans:</b> {new_balance:,.0f} so'm\n"
+                    except:
+                        pass
+
                     await self.bot.send_message(
                         telegram_id,
-                        f"🔑 Task ID: <code>{task_uuid}</code>\n"
-                        f"⚠️ Xato: {str(e)}\n\n"
-                        f"Iltimos, qaytadan urinib ko'ring yoki support bilan bog'laning.",
+                        f"❌ <b>Xatolik yuz berdi!</b>\n\n"
+                        f"⚠️ <b>Xato:</b> {str(e)}\n"
+                        f"{refund_text}\n"
+                        f"Iltimos, qaytadan urinib ko'ring.\n\n"
+                        f"🔄 /start - Bosh menyu",
                         parse_mode='HTML'
                     )
                 except:
