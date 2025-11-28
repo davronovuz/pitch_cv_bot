@@ -759,3 +759,395 @@ async def add_balance_amount(message: types.Message, state: FSMContext):
         await message.answer("❌ Balans qo'shishda xatolik!")
 
     await state.finish()
+
+
+# ==================== BARCHA BALANSLARNI RESET QILISH ====================
+# Bu kodni admin_panel.py fayliga qo'shing
+
+# 1️⃣ YANGI STATE QO'SHING (AdminStates klassiga):
+# class AdminStates(StatesGroup):
+#     ...
+#     ResetAllBalancesConfirm = State()  # <-- Bu qatorni qo'shing
+
+
+# 2️⃣ BU HANDLER'LARNI FAYLNING OXIRIGA QO'SHING:
+
+@dp.message_handler(commands="reset_all_balances")
+async def reset_all_balances_command(message: types.Message):
+    """
+    Barcha foydalanuvchilar balansini 0 ga tushirish
+    Faqat SUPER ADMIN uchun!
+    """
+    telegram_id = message.from_user.id
+
+    # Faqat super admin
+    if not await check_super_admin_permission(telegram_id):
+        await message.reply("❌ Bu komanda faqat super adminlar uchun!")
+        return
+
+    # Hozirgi statistika
+    total_users = user_db.count_users()
+    total_balance = user_db.get_total_balance()  # Yangi metod kerak
+
+    warning_text = f"""
+⚠️ <b>DIQQAT! XAVFLI OPERATSIYA!</b>
+
+Siz <b>BARCHA</b> foydalanuvchilarning balansini 
+0 ga tushirmoqchisiz!
+
+📊 <b>Hozirgi holat:</b>
+👥 Jami foydalanuvchilar: {total_users}
+💰 Jami balans: {total_balance:,.0f} so'm
+
+❗️ Bu amalni ortga qaytarib bo'lmaydi!
+
+Tasdiqlash uchun quyidagi tugmani bosing:
+"""
+
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        types.InlineKeyboardButton(
+            "🔴 HA, BARCHASINI 0 GA TUSHIRISH",
+            callback_data="confirm_reset_all_balances"
+        ),
+        types.InlineKeyboardButton(
+            "❌ BEKOR QILISH",
+            callback_data="cancel_reset_balances"
+        )
+    )
+
+    await message.answer(warning_text, reply_markup=keyboard)
+
+
+@dp.callback_query_handler(lambda c: c.data == "confirm_reset_all_balances")
+async def confirm_reset_all_balances(callback: types.CallbackQuery):
+    """Birinchi tasdiqlash - ikkinchi tasdiqlash so'rash"""
+    telegram_id = callback.from_user.id
+
+    if not await check_super_admin_permission(telegram_id):
+        await callback.answer("❌ Ruxsat yo'q!", show_alert=True)
+        return
+
+    # Ikkinchi tasdiqlash
+    final_warning = """
+🔴🔴🔴 <b>OXIRGI OGOHLANTIRISH!</b> 🔴🔴🔴
+
+Siz rostdan ham <b>BARCHA</b> balanslarni 
+0 ga tushirmoqchimisiz?
+
+Bu amal:
+• Barcha foydalanuvchilar pulini o'chiradi
+• Ortga qaytarib bo'lmaydi
+• Log'ga yoziladi
+
+<b>OXIRGI MARTA SO'RAYAPMAN:</b>
+Davom etasizmi?
+"""
+
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        types.InlineKeyboardButton(
+            "⚠️ HA, TUSHUNARLI, DAVOM ETISH!",
+            callback_data="final_reset_all_balances"
+        ),
+        types.InlineKeyboardButton(
+            "❌ YO'Q, BEKOR QILISH",
+            callback_data="cancel_reset_balances"
+        )
+    )
+
+    await callback.message.edit_text(final_warning, reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query_handler(lambda c: c.data == "final_reset_all_balances")
+async def execute_reset_all_balances(callback: types.CallbackQuery):
+    """Balanslarni reset qilish - YAKUNIY"""
+    telegram_id = callback.from_user.id
+    admin_name = callback.from_user.full_name
+
+    if not await check_super_admin_permission(telegram_id):
+        await callback.answer("❌ Ruxsat yo'q!", show_alert=True)
+        return
+
+    await callback.message.edit_text("⏳ Balanslar reset qilinmoqda...")
+
+    try:
+        # Reset qilishdan oldingi statistika
+        total_before = user_db.get_total_balance()
+        users_with_balance = user_db.count_users_with_balance()
+
+        # BARCHA BALANSLARNI 0 GA TUSHIRISH
+        success = user_db.reset_all_balances(admin_telegram_id=telegram_id)
+
+        if success:
+            result_text = f"""
+✅ <b>BALANSLAR RESET QILINDI!</b>
+
+📊 <b>Natija:</b>
+👥 Reset qilingan userlar: {users_with_balance}
+💰 O'chirilgan summa: {total_before:,.0f} so'm
+👨‍💼 Bajardi: {admin_name}
+🕐 Vaqt: {callback.message.date.strftime('%Y-%m-%d %H:%M:%S')}
+
+⚠️ Bu amal log'ga yozildi.
+"""
+            logger.warning(
+                f"🔴 RESET ALL BALANCES by Admin {telegram_id} ({admin_name}): "
+                f"{users_with_balance} users, {total_before:,.0f} so'm"
+            )
+        else:
+            result_text = "❌ Xatolik yuz berdi! Log'larni tekshiring."
+
+        await callback.message.edit_text(result_text)
+
+    except Exception as e:
+        logger.error(f"Reset balances xato: {e}")
+        await callback.message.edit_text(f"❌ Xatolik: {e}")
+
+    await callback.answer()
+
+
+@dp.callback_query_handler(lambda c: c.data == "cancel_reset_balances")
+async def cancel_reset_balances(callback: types.CallbackQuery):
+    """Bekor qilish"""
+    await callback.message.edit_text("✅ Amal bekor qilindi. Balanslar o'zgarmadi.")
+    await callback.answer("Bekor qilindi")
+
+
+# ==================== KENGAYTIRILGAN STATISTIKA - ADMIN PANEL ====================
+# Bu kodni admin_panel.py ga qo'shing
+# Eski /panel va get_admin_statistics() ni shu bilan almashtiring
+
+from datetime import datetime
+import pytz
+
+TASHKENT_TZ = pytz.timezone('Asia/Tashkent')
+
+
+@dp.message_handler(commands="boshqar")
+async def control_panel(message: types.Message):
+    """Admin panelga kirish - Kengaytirilgan statistika"""
+    telegram_id = message.from_user.id
+    logger.info(f"Panel ochish: {telegram_id}")
+
+    if not await check_super_admin_permission(telegram_id) and not await check_admin_permission(telegram_id):
+        await message.reply("❌ Siz admin emassiz!")
+        return
+
+    # Kengaytirilgan statistika olish
+    stats = user_db.get_extended_statistics()
+
+    if not stats:
+        await message.answer("❌ Statistikani olishda xatolik!")
+        return
+
+    # Toshkent vaqti
+    tashkent_time = datetime.now(TASHKENT_TZ).strftime('%Y-%m-%d %H:%M:%S')
+
+    # Bugungi tasklar
+    today_tasks = stats.get('today_tasks', {})
+    all_tasks = stats.get('all_tasks', {})
+
+    stats_text = f"""
+🎛 <b>ADMIN PANEL</b>
+🕐 {tashkent_time} (Toshkent)
+
+━━━━━━━━━━━━━━━━━━━━━━
+👥 <b>FOYDALANUVCHILAR</b>
+━━━━━━━━━━━━━━━━━━━━━━
+📊 Jami: <b>{stats['total_users']}</b>
+💰 Balansi bor: <b>{stats['users_with_balance']}</b>
+🚫 Balansi yo'q: <b>{stats['users_without_balance']}</b>
+
+🆕 Bugun: +{stats['new_users_today']}
+📅 Bu hafta: +{stats['new_users_week']}
+📆 Bu oy: +{stats['new_users_month']}
+
+━━━━━━━━━━━━━━━━━━━━━━
+💳 <b>BALANSLAR</b>
+━━━━━━━━━━━━━━━━━━━━━━
+💰 Jami balans: <b>{stats['total_balance']:,.0f}</b> so'm
+📊 O'rtacha: <b>{stats['avg_balance']:,.0f}</b> so'm
+🔝 Maksimal: <b>{stats['max_balance']:,.0f}</b> so'm
+
+━━━━━━━━━━━━━━━━━━━━━━
+📈 <b>BUGUNGI TRANZAKSIYALAR</b>
+━━━━━━━━━━━━━━━━━━━━━━
+➕ To'ldirildi: <b>{stats['today_deposited']:,.0f}</b> so'm ({stats['today_deposit_count']} ta)
+➖ Sarflandi: <b>{stats['today_spent']:,.0f}</b> so'm ({stats['today_spent_count']} ta)
+⏳ Kutilmoqda: <b>{stats['today_pending']:,.0f}</b> so'm ({stats['today_pending_count']} ta)
+📊 Bugungi foyda: <b>{stats['today_deposited'] - stats['today_spent']:,.0f}</b> so'm
+
+━━━━━━━━━━━━━━━━━━━━━━
+📅 <b>BU HAFTA</b>
+━━━━━━━━━━━━━━━━━━━━━━
+➕ To'ldirildi: <b>{stats['week_deposited']:,.0f}</b> so'm ({stats['week_deposit_count']} ta)
+➖ Sarflandi: <b>{stats['week_spent']:,.0f}</b> so'm ({stats['week_spent_count']} ta)
+
+━━━━━━━━━━━━━━━━━━━━━━
+📆 <b>BU OY</b>
+━━━━━━━━━━━━━━━━━━━━━━
+➕ To'ldirildi: <b>{stats['month_deposited']:,.0f}</b> so'm ({stats['month_deposit_count']} ta)
+➖ Sarflandi: <b>{stats['month_spent']:,.0f}</b> so'm ({stats['month_spent_count']} ta)
+
+━━━━━━━━━━━━━━━━━━━━━━
+📊 <b>JAMI (ALL TIME)</b>
+━━━━━━━━━━━━━━━━━━━━━━
+➕ To'ldirildi: <b>{stats['total_deposited']:,.0f}</b> so'm ({stats['total_deposit_count']} ta)
+➖ Sarflandi: <b>{stats['total_spent']:,.0f}</b> so'm ({stats['total_spent_count']} ta)
+⏳ Kutilmoqda: <b>{stats['total_pending']:,.0f}</b> so'm ({stats['total_pending_count']} ta)
+
+━━━━━━━━━━━━━━━━━━━━━━
+📋 <b>TASK'LAR</b>
+━━━━━━━━━━━━━━━━━━━━━━
+📅 Bugun: {stats['today_tasks_total']} ta
+   ⏳ Pending: {today_tasks.get('pending', 0)}
+   ⚙️ Processing: {today_tasks.get('processing', 0)}
+   ✅ Completed: {today_tasks.get('completed', 0)}
+   ❌ Failed: {today_tasks.get('failed', 0)}
+
+📊 Jami:
+   ⏳ Pending: {all_tasks.get('pending', 0)}
+   ⚙️ Processing: {all_tasks.get('processing', 0)}
+   ✅ Completed: {all_tasks.get('completed', 0)}
+   ❌ Failed: {all_tasks.get('failed', 0)}
+"""
+
+    await message.answer(stats_text, reply_markup=menu_admin)
+
+    # Top userlar alohida xabar
+    if stats.get('top_balance_users') or stats.get('top_depositors_today'):
+        top_text = "━━━━━━━━━━━━━━━━━━━━━━\n🏆 <b>TOP FOYDALANUVCHILAR</b>\n━━━━━━━━━━━━━━━━━━━━━━\n"
+
+        if stats.get('top_balance_users'):
+            top_text += "\n💰 <b>Eng ko'p balans:</b>\n"
+            for i, user in enumerate(stats['top_balance_users'], 1):
+                top_text += f"{i}. @{user['username']} - <b>{user['balance']:,.0f}</b> so'm\n"
+
+        if stats.get('top_depositors_today'):
+            top_text += "\n📈 <b>Bugun eng ko'p to'ldirgan:</b>\n"
+            for i, user in enumerate(stats['top_depositors_today'], 1):
+                top_text += f"{i}. @{user['username']} - <b>{user['amount']:,.0f}</b> so'm\n"
+
+        await message.answer(top_text)
+
+
+# ==================== QISQA STATISTIKA KOMANDASI ====================
+@dp.message_handler(commands="stats")
+async def quick_stats(message: types.Message):
+    """Qisqa statistika - faqat bugungi"""
+    telegram_id = message.from_user.id
+
+    if not await check_super_admin_permission(telegram_id) and not await check_admin_permission(telegram_id):
+        await message.reply("❌ Siz admin emassiz!")
+        return
+
+    stats = user_db.get_extended_statistics()
+
+    if not stats:
+        await message.answer("❌ Statistikani olishda xatolik!")
+        return
+
+    tashkent_time = datetime.now(TASHKENT_TZ).strftime('%H:%M')
+
+    quick_text = f"""
+📊 <b>QISQA STATISTIKA</b> ({tashkent_time})
+
+👥 Userlar: {stats['total_users']} (💰{stats['users_with_balance']})
+🆕 Bugun yangi: +{stats['new_users_today']}
+
+💳 Jami balans: <b>{stats['total_balance']:,.0f}</b> so'm
+
+📈 <b>BUGUN:</b>
+➕ To'ldirildi: {stats['today_deposited']:,.0f} ({stats['today_deposit_count']})
+➖ Sarflandi: {stats['today_spent']:,.0f} ({stats['today_spent_count']})
+⏳ Kutilmoqda: {stats['today_pending']:,.0f} ({stats['today_pending_count']})
+
+📋 Task: {stats['today_tasks_total']} ta
+"""
+
+    await message.answer(quick_text)
+
+
+# ==================== MOLIYAVIY HISOBOT ====================
+@dp.message_handler(commands="finance")
+async def finance_report(message: types.Message):
+    """Moliyaviy hisobot"""
+    telegram_id = message.from_user.id
+
+    if not await check_super_admin_permission(telegram_id):
+        await message.reply("❌ Faqat super adminlar uchun!")
+        return
+
+    stats = user_db.get_extended_statistics()
+
+    if not stats:
+        await message.answer("❌ Statistikani olishda xatolik!")
+        return
+
+    tashkent_time = datetime.now(TASHKENT_TZ).strftime('%Y-%m-%d %H:%M')
+
+    # Hisoblashlar
+    today_profit = stats['today_deposited'] - stats['today_spent']
+    week_profit = stats['week_deposited'] - stats['week_spent']
+    month_profit = stats['month_deposited'] - stats['month_spent']
+    total_profit = stats['total_deposited'] - stats['total_spent']
+
+    # Foyda foizi
+    today_margin = (today_profit / stats['today_deposited'] * 100) if stats['today_deposited'] > 0 else 0
+    week_margin = (week_profit / stats['week_deposited'] * 100) if stats['week_deposited'] > 0 else 0
+    month_margin = (month_profit / stats['month_deposited'] * 100) if stats['month_deposited'] > 0 else 0
+
+    finance_text = f"""
+💰 <b>MOLIYAVIY HISOBOT</b>
+🕐 {tashkent_time} (Toshkent)
+
+━━━━━━━━━━━━━━━━━━━━━━
+📈 <b>BUGUN</b>
+━━━━━━━━━━━━━━━━━━━━━━
+💵 Kirim: <b>{stats['today_deposited']:,.0f}</b> so'm
+💸 Chiqim: <b>{stats['today_spent']:,.0f}</b> so'm
+📊 Foyda: <b>{today_profit:,.0f}</b> so'm ({today_margin:.1f}%)
+⏳ Kutilmoqda: {stats['today_pending']:,.0f} so'm
+
+━━━━━━━━━━━━━━━━━━━━━━
+📅 <b>BU HAFTA</b>
+━━━━━━━━━━━━━━━━━━━━━━
+💵 Kirim: <b>{stats['week_deposited']:,.0f}</b> so'm
+💸 Chiqim: <b>{stats['week_spent']:,.0f}</b> so'm
+📊 Foyda: <b>{week_profit:,.0f}</b> so'm ({week_margin:.1f}%)
+
+━━━━━━━━━━━━━━━━━━━━━━
+📆 <b>BU OY</b>
+━━━━━━━━━━━━━━━━━━━━━━
+💵 Kirim: <b>{stats['month_deposited']:,.0f}</b> so'm
+💸 Chiqim: <b>{stats['month_spent']:,.0f}</b> so'm
+📊 Foyda: <b>{month_profit:,.0f}</b> so'm ({month_margin:.1f}%)
+
+━━━━━━━━━━━━━━━━━━━━━━
+📊 <b>JAMI</b>
+━━━━━━━━━━━━━━━━━━━━━━
+💵 Kirim: <b>{stats['total_deposited']:,.0f}</b> so'm
+💸 Chiqim: <b>{stats['total_spent']:,.0f}</b> so'm
+📊 Foyda: <b>{total_profit:,.0f}</b> so'm
+⏳ Kutilmoqda: {stats['total_pending']:,.0f} so'm
+
+━━━━━━━━━━━━━━━━━━━━━━
+💳 <b>BALANS HOLATI</b>
+━━━━━━━━━━━━━━━━━━━━━━
+💰 Jami balans: <b>{stats['total_balance']:,.0f}</b> so'm
+👥 Balansi bor: {stats['users_with_balance']} ta user
+📊 O'rtacha: {stats['avg_balance']:,.0f} so'm
+🔝 Maksimal: {stats['max_balance']:,.0f} so'm
+"""
+
+    await message.answer(finance_text)
+
+
+# ==================== BUTTON HANDLER ====================
+@dp.message_handler(Text(equals="📊 Statistika"))
+async def stats_button_handler(message: types.Message):
+    """Statistika tugmasi"""
+    await control_panel(message)
+
