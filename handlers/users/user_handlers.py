@@ -160,7 +160,7 @@ async def pitch_deck_start(message: types.Message, state: FSMContext):
 3. Zamonaviy dizayn qilinadi
 4. Tayyor PPTX sizga yuboriladi
 
-💰 <b>Narx:</b> {price:,.0f} so'm har bir varoq
+💰 <b>Narx:</b> {price:,.0f} so'm 
 💳 <b>Sizning balansingiz:</b> {balance:,.0f} so'm
 """
 
