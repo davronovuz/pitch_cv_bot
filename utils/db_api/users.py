@@ -1,7 +1,9 @@
 from .database import Database
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
+import pytz
 
+TASHKENT_TZ = pytz.timezone('Asia/Tashkent')
 
 class UserDatabase(Database):
     def create_table_users(self):
@@ -681,10 +683,8 @@ class UserDatabase(Database):
 # ==================== KENGAYTIRILGAN STATISTIKA METODLARI ====================
 # Bu metodlarni utils/db/users_db.py fayliga qo'shing
 
-    from datetime import datetime, timedelta
-    import pytz
 
-    # Toshkent timezone
+
     TASHKENT_TZ = pytz.timezone('Asia/Tashkent')
 
 
