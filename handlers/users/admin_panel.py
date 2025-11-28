@@ -5,7 +5,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 import logging
 
 from data.config import ADMINS
-from loader import dp, user_db
+from loader import dp, user_db, bot
 from keyboards.default.default_keyboard import menu_ichki_admin, menu_admin
 
 logger = logging.getLogger(__name__)
@@ -442,39 +442,153 @@ Tasdiqlaysizmi?
             await message.answer(trans_text, reply_markup=keyboard)
 
 
+# ==================== TRANZAKSIYALAR CALLBACK HANDLERS ====================
+# Bu kodni admin_panel.py dagi eski callback handler'lar o'rniga qo'ying
+
 @dp.callback_query_handler(lambda c: c.data.startswith('approve_trans:'))
 async def approve_transaction_callback(callback: types.CallbackQuery):
     """Tranzaksiyani tasdiqlash"""
-    transaction_id = int(callback.data.split(':')[1])
-    admin_telegram_id = callback.from_user.id
+    try:
+        transaction_id = int(callback.data.split(':')[1])
+        admin_telegram_id = callback.from_user.id
+        admin_name = callback.from_user.full_name
 
-    success = user_db.approve_transaction(transaction_id, admin_telegram_id)
+        # Tranzaksiya ma'lumotlarini olish
+        trans = user_db.get_transaction_by_id(transaction_id)
 
-    if success:
-        await callback.message.edit_caption(
-            caption=callback.message.caption + "\n\n✅ <b>TASDIQLANDI</b>",
-            reply_markup=None
-        )
+        if not trans:
+            await callback.answer("❌ Tranzaksiya topilmadi!", show_alert=True)
+            return
+
+        if trans['status'] != 'pending':
+            await callback.answer(f"⚠️ Bu tranzaksiya allaqachon {trans['status']}!", show_alert=True)
+            return
+
+        # Tranzaksiyani tasdiqlash
+        success = user_db.approve_transaction(transaction_id, admin_telegram_id)
+
+        if not success:
+            await callback.answer("❌ Xatolik yuz berdi!", show_alert=True)
+            return
+
+        # ✅ TO'G'IRLANGAN: text yoki caption tekshirish
+        new_text = f"""
+✅ <b>TASDIQLANDI!</b>
+
+🆔 Tranzaksiya: {transaction_id}
+👤 User ID: {trans['telegram_id']}
+💰 Summa: {trans['amount']:,.0f} so'm
+👨‍💼 Tasdiqlagan: {admin_name}
+"""
+
+        # Xabarni yangilash - caption yoki text
+        try:
+            if callback.message.caption:
+                await callback.message.edit_caption(caption=new_text, parse_mode='HTML')
+            else:
+                await callback.message.edit_text(text=new_text, parse_mode='HTML')
+        except Exception as e:
+            # Agar edit qilib bo'lmasa, yangi xabar yuborish
+            await callback.message.answer(new_text, parse_mode='HTML')
+
         await callback.answer("✅ Tranzaksiya tasdiqlandi!")
-    else:
+
+        # Userga xabar yuborish
+        try:
+            new_balance = user_db.get_user_balance(trans['telegram_id'])
+            user_text = f"""
+✅ <b>TO'LOV TASDIQLANDI!</b>
+
+💰 Summa: <b>{trans['amount']:,.0f} so'm</b>
+🆔 Tranzaksiya ID: {transaction_id}
+👤 Tasdiqlagan: {admin_name}
+
+💳 Yangi balansingiz: <b>{new_balance:,.0f} so'm</b>
+
+Xizmatlarimizdan foydalanishingiz mumkin! 🎉
+"""
+            await bot.send_message(trans['telegram_id'], user_text, parse_mode='HTML')
+        except Exception as e:
+            logger.error(f"User notification xatosi: {e}")
+
+        logger.info(f"✅ Trans {transaction_id} tasdiqlandi by Admin {admin_telegram_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Approve callback xato: {e}")
         await callback.answer("❌ Xatolik yuz berdi!", show_alert=True)
 
 
 @dp.callback_query_handler(lambda c: c.data.startswith('reject_trans:'))
 async def reject_transaction_callback(callback: types.CallbackQuery):
     """Tranzaksiyani rad etish"""
-    transaction_id = int(callback.data.split(':')[1])
-    admin_telegram_id = callback.from_user.id
+    try:
+        transaction_id = int(callback.data.split(':')[1])
+        admin_telegram_id = callback.from_user.id
+        admin_name = callback.from_user.full_name
 
-    success = user_db.reject_transaction(transaction_id, admin_telegram_id)
+        # Tranzaksiya ma'lumotlarini olish
+        trans = user_db.get_transaction_by_id(transaction_id)
 
-    if success:
-        await callback.message.edit_caption(
-            caption=callback.message.caption + "\n\n❌ <b>RAD ETILDI</b>",
-            reply_markup=None
-        )
-        await callback.answer("✅ Tranzaksiya rad etildi!")
-    else:
+        if not trans:
+            await callback.answer("❌ Tranzaksiya topilmadi!", show_alert=True)
+            return
+
+        if trans['status'] != 'pending':
+            await callback.answer(f"⚠️ Bu tranzaksiya allaqachon {trans['status']}!", show_alert=True)
+            return
+
+        # Tranzaksiyani rad etish
+        success = user_db.reject_transaction(transaction_id, admin_telegram_id)
+
+        if not success:
+            await callback.answer("❌ Xatolik yuz berdi!", show_alert=True)
+            return
+
+        # ✅ TO'G'IRLANGAN: text yoki caption tekshirish
+        new_text = f"""
+❌ <b>RAD ETILDI!</b>
+
+🆔 Tranzaksiya: {transaction_id}
+👤 User ID: {trans['telegram_id']}
+💰 Summa: {trans['amount']:,.0f} so'm
+👨‍💼 Rad etgan: {admin_name}
+"""
+
+        # Xabarni yangilash - caption yoki text
+        try:
+            if callback.message.caption:
+                await callback.message.edit_caption(caption=new_text, parse_mode='HTML')
+            else:
+                await callback.message.edit_text(text=new_text, parse_mode='HTML')
+        except Exception as e:
+            await callback.message.answer(new_text, parse_mode='HTML')
+
+        await callback.answer("❌ Tranzaksiya rad etildi!")
+
+        # Userga xabar yuborish
+        try:
+            user_text = f"""
+❌ <b>TO'LOV RAD ETILDI</b>
+
+💰 Summa: {trans['amount']:,.0f} so'm
+🆔 Tranzaksiya ID: {transaction_id}
+👤 Rad etgan: {admin_name}
+
+❓ <b>Sabablari:</b>
+- Chek noto'g'ri
+- Summa mos kelmaydi
+- Boshqa sabab
+
+Iltimos, qaytadan urinib ko'ring yoki admin bilan bog'laning.
+"""
+            await bot.send_message(trans['telegram_id'], user_text, parse_mode='HTML')
+        except Exception as e:
+            logger.error(f"User notification xatosi: {e}")
+
+        logger.info(f"❌ Trans {transaction_id} rad etildi by Admin {admin_telegram_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Reject callback xato: {e}")
         await callback.answer("❌ Xatolik yuz berdi!", show_alert=True)
 
 
