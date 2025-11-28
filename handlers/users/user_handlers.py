@@ -335,7 +335,7 @@ async def pitch_deck_start(message: types.Message, state: FSMContext):
         # Narxni olish
         price = user_db.get_price('pitch_deck')
         if not price:
-            price = 50000.0  # Default narx
+            price = 1500   # Default narx
 
         # Balansni tekshirish
         balance = user_db.get_user_balance(telegram_id)
@@ -349,7 +349,7 @@ async def pitch_deck_start(message: types.Message, state: FSMContext):
 3. Zamonaviy dizayn qilinadi
 4. Tayyor PPTX sizga yuboriladi
 
-💰 <b>Narx:</b> {price:,.0f} so'm
+💰 <b>Narx:</b> {price:,.0f} so'm har bir varoq
 💳 <b>Sizning balansingiz:</b> {balance:,.0f} so'm
 """
 

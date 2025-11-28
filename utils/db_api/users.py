@@ -11,9 +11,9 @@ class UserDatabase(Database):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             telegram_id BIGINT NOT NULL UNIQUE,
             username VARCHAR(255) NULL,
-            balance DECIMAL(10, 2) DEFAULT 0.00,  -- YANGI: Foydalanuvchi balansi
-            total_spent DECIMAL(10, 2) DEFAULT 0.00,  -- Jami sarflangan summa
-            total_deposited DECIMAL(10, 2) DEFAULT 0.00,  -- Jami to'ldirilgan summa
+            balance DECIMAL(10, 2) DEFAULT 0.00,
+            total_spent DECIMAL(10, 2) DEFAULT 0.00,
+            total_deposited DECIMAL(10, 2) DEFAULT 0.00,
             last_active DATETIME NULL,
             is_active BOOLEAN DEFAULT TRUE,
             is_blocked BOOLEAN DEFAULT FALSE,
@@ -36,19 +36,19 @@ class UserDatabase(Database):
         self.execute(sql_admins, commit=True)
 
     def create_table_transactions(self):
-        """Tranzaksiyalar jadvali - balans to'ldirish va sarflash"""
+        """Tranzaksiyalar jadvali"""
         sql = """
         CREATE TABLE IF NOT EXISTS Transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            transaction_type VARCHAR(50) NOT NULL,  -- 'deposit', 'withdrawal', 'refund'
+            transaction_type VARCHAR(50) NOT NULL,
             amount DECIMAL(10, 2) NOT NULL,
             balance_before DECIMAL(10, 2) NOT NULL,
             balance_after DECIMAL(10, 2) NOT NULL,
             description TEXT NULL,
-            receipt_file_id TEXT NULL,  -- To'lov cheki
-            status VARCHAR(50) DEFAULT 'pending',  -- 'pending', 'approved', 'rejected'
-            admin_id INTEGER NULL,  -- Qaysi admin tasdiqlagan
+            receipt_file_id TEXT NULL,
+            status VARCHAR(50) DEFAULT 'pending',
+            admin_id INTEGER NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NULL,
             FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
@@ -57,7 +57,6 @@ class UserDatabase(Database):
         """
         self.execute(sql, commit=True)
 
-        # Index yaratish - tezroq qidiruv uchun
         self.execute("""
             CREATE INDEX IF NOT EXISTS idx_transactions_user 
             ON Transactions(user_id);
@@ -69,16 +68,16 @@ class UserDatabase(Database):
         """, commit=True)
 
     def create_table_pricing(self):
-        """Narxlar jadvali - Admin o'zgartira oladi"""
+        """Narxlar jadvali"""
         sql = """
         CREATE TABLE IF NOT EXISTS Pricing (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            service_type VARCHAR(100) NOT NULL UNIQUE,  -- 'slide', 'pro_slide', 'consultation', etc.
+            service_type VARCHAR(100) NOT NULL UNIQUE,
             price DECIMAL(10, 2) NOT NULL,
             currency VARCHAR(10) DEFAULT "so'm",
             description TEXT NULL,
             is_active BOOLEAN DEFAULT TRUE,
-            updated_by INTEGER NULL,  -- Qaysi admin o'zgartirgan
+            updated_by INTEGER NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NULL,
             FOREIGN KEY (updated_by) REFERENCES Users(id) ON DELETE SET NULL
@@ -86,7 +85,6 @@ class UserDatabase(Database):
         """
         self.execute(sql, commit=True)
 
-        # Default narxlarni qo'shish
         default_prices = [
             ('slide_basic', 1000.00, "so'm", 'Oddiy slayd', True),
             ('slide_pro', 2000.00, "so'm", 'Professional slayd', True),
@@ -101,20 +99,20 @@ class UserDatabase(Database):
             """, parameters=(service, price, currency, desc, active), commit=True)
 
     def create_table_presentation_tasks(self):
-        """Prezentatsiya task'lari - Background processing uchun"""
+        """Prezentatsiya task'lari"""
         sql = """
         CREATE TABLE IF NOT EXISTS PresentationTasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            task_uuid VARCHAR(100) NOT NULL UNIQUE,  -- Unique task identifier
-            presentation_type VARCHAR(50) NOT NULL,  -- 'basic', 'pro'
+            task_uuid VARCHAR(100) NOT NULL UNIQUE,
+            presentation_type VARCHAR(50) NOT NULL,
             slide_count INTEGER DEFAULT 10,
-            answers TEXT NOT NULL,  -- JSON format
-            status VARCHAR(50) DEFAULT 'pending',  -- 'pending', 'processing', 'completed', 'failed'
-            progress INTEGER DEFAULT 0,  -- 0-100%
-            file_path TEXT NULL,  -- Tayyor PPTX fayl yo'li
-            error_message TEXT NULL,  -- Xato xabari
-            amount_charged DECIMAL(10, 2) NULL,  -- Qancha to'langan
+            answers TEXT NOT NULL,
+            status VARCHAR(50) DEFAULT 'pending',
+            progress INTEGER DEFAULT 0,
+            file_path TEXT NULL,
+            error_message TEXT NULL,
+            amount_charged DECIMAL(10, 2) NULL,
             started_at DATETIME NULL,
             completed_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -123,21 +121,9 @@ class UserDatabase(Database):
         """
         self.execute(sql, commit=True)
 
-        # Index yaratish
-        self.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tasks_user 
-            ON PresentationTasks(user_id);
-        """, commit=True)
-
-        self.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tasks_status 
-            ON PresentationTasks(status);
-        """, commit=True)
-
-        self.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tasks_uuid 
-            ON PresentationTasks(task_uuid);
-        """, commit=True)
+        self.execute("CREATE INDEX IF NOT EXISTS idx_tasks_user ON PresentationTasks(user_id);", commit=True)
+        self.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON PresentationTasks(status);", commit=True)
+        self.execute("CREATE INDEX IF NOT EXISTS idx_tasks_uuid ON PresentationTasks(task_uuid);", commit=True)
 
     # ==================== USER METHODLAR ====================
 
@@ -155,14 +141,6 @@ class UserDatabase(Database):
             if created_at is None:
                 created_at = datetime.now().isoformat()
             self.execute(sql, parameters=(telegram_id, username, created_at), commit=True)
-        else:
-            print(f"User {telegram_id} allaqachon mavjud.")
-
-    def get_user_balance(self, telegram_id: int) -> float:
-        """Foydalanuvchi balansini olish"""
-        sql = "SELECT balance FROM Users WHERE telegram_id = ?"
-        result = self.execute(sql, parameters=(telegram_id,), fetchone=True)
-        return float(result[0]) if result else 0.0
 
     def get_user_id(self, telegram_id: int) -> Optional[int]:
         """Telegram ID orqali database user_id ni olish"""
@@ -170,31 +148,25 @@ class UserDatabase(Database):
         result = self.execute(sql, parameters=(telegram_id,), fetchone=True)
         return result[0] if result else None
 
-    def update_user_balance(self, telegram_id: int, new_balance: float):
-        """Foydalanuvchi balansini yangilash"""
-        sql = """
-        UPDATE Users
-        SET balance = ?
-        WHERE telegram_id = ?
-        """
-        self.execute(sql, parameters=(new_balance, telegram_id), commit=True)
+    def get_user_balance(self, telegram_id: int) -> float:
+        """Foydalanuvchi balansini olish"""
+        sql = "SELECT balance FROM Users WHERE telegram_id = ?"
+        result = self.execute(sql, parameters=(telegram_id,), fetchone=True)
+        return float(result[0]) if result else 0.0
 
     def add_to_balance(self, telegram_id: int, amount: float) -> bool:
         """Balansga qo'shish"""
         try:
-            current_balance = self.get_user_balance(telegram_id)
-            new_balance = current_balance + amount
-
             sql = """
             UPDATE Users
-            SET balance = ?,
+            SET balance = balance + ?,
                 total_deposited = total_deposited + ?
             WHERE telegram_id = ?
             """
-            self.execute(sql, parameters=(new_balance, amount, telegram_id), commit=True)
+            self.execute(sql, parameters=(amount, amount, telegram_id), commit=True)
             return True
         except Exception as e:
-            print(f"Balansga qo'shishda xato: {e}")
+            print(f"❌ Balansga qo'shishda xato: {e}")
             return False
 
     def deduct_from_balance(self, telegram_id: int, amount: float) -> bool:
@@ -203,29 +175,26 @@ class UserDatabase(Database):
             current_balance = self.get_user_balance(telegram_id)
 
             if current_balance < amount:
-                print(f"Balansda yetarli mablag' yo'q: {current_balance} < {amount}")
+                print(f"❌ Balansda yetarli mablag' yo'q: {current_balance} < {amount}")
                 return False
-
-            new_balance = current_balance - amount
 
             sql = """
             UPDATE Users
-            SET balance = ?,
+            SET balance = balance - ?,
                 total_spent = total_spent + ?
-            WHERE telegram_id = ?
+            WHERE telegram_id = ? AND balance >= ?
             """
-            self.execute(sql, parameters=(new_balance, amount, telegram_id), commit=True)
+            self.execute(sql, parameters=(amount, amount, telegram_id, amount), commit=True)
             return True
         except Exception as e:
-            print(f"Balansdan yechishda xato: {e}")
+            print(f"❌ Balansdan yechishda xato: {e}")
             return False
 
     def get_user_stats(self, telegram_id: int) -> Optional[Dict]:
         """Foydalanuvchi statistikasini olish"""
         sql = """
         SELECT balance, total_spent, total_deposited, created_at
-        FROM Users
-        WHERE telegram_id = ?
+        FROM Users WHERE telegram_id = ?
         """
         result = self.execute(sql, parameters=(telegram_id,), fetchone=True)
 
@@ -253,21 +222,22 @@ class UserDatabase(Database):
         try:
             user_id = self.get_user_id(telegram_id)
             if not user_id:
+                print(f"❌ User topilmadi: telegram_id={telegram_id}")
                 return None
 
             balance_before = self.get_user_balance(telegram_id)
-            balance_after = balance_before  # Tasdiqlangandan keyin o'zgaradi
+            balance_after = balance_before
 
             sql = """
             INSERT INTO Transactions (
                 user_id, transaction_type, amount, 
                 balance_before, balance_after, 
-                description, receipt_file_id, status
+                description, receipt_file_id, status, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """
 
-            result = self.execute(
+            self.execute(
                 sql,
                 parameters=(
                     user_id, transaction_type, amount,
@@ -277,39 +247,93 @@ class UserDatabase(Database):
                 commit=True
             )
 
-            # Last inserted ID ni qaytarish
-            return self.execute("SELECT last_insert_rowid()", fetchone=True)[0]
+            # Last inserted ID
+            result = self.execute("SELECT last_insert_rowid()", fetchone=True)
+            return result[0] if result else None
 
         except Exception as e:
-            print(f"Tranzaksiya yaratishda xato: {e}")
+            print(f"❌ Tranzaksiya yaratishda xato: {e}")
             return None
 
-    def approve_transaction(self, transaction_id: int, admin_telegram_id: int) -> bool:
-        """Tranzaksiyani tasdiqlash va balansni yangilash"""
+    def get_transaction_by_id(self, trans_id: int) -> Optional[Dict]:
+        """
+        Tranzaksiyani ID bo'yicha olish
+
+        ✅ TO'G'RI USTUN NOMLARI BILAN!
+        """
         try:
-            # Tranzaksiya ma'lumotlarini olish
             sql = """
-            SELECT t.user_id, u.telegram_id, t.transaction_type, t.amount, t.status
+            SELECT 
+                t.id,
+                t.user_id,
+                t.transaction_type,
+                t.amount,
+                t.description,
+                t.receipt_file_id,
+                t.status,
+                t.admin_id,
+                t.created_at,
+                t.updated_at,
+                u.telegram_id
             FROM Transactions t
             JOIN Users u ON t.user_id = u.id
             WHERE t.id = ?
             """
-            result = self.execute(sql, parameters=(transaction_id,), fetchone=True)
+            result = self.execute(sql, parameters=(trans_id,), fetchone=True)
 
-            if not result:
+            if result:
+                return {
+                    'id': result[0],
+                    'user_id': result[1],
+                    'type': result[2],
+                    'amount': float(result[3]),
+                    'description': result[4],
+                    'receipt_file_id': result[5],
+                    'status': result[6],
+                    'admin_id': result[7],
+                    'created_at': result[8],
+                    'updated_at': result[9],
+                    'telegram_id': result[10]  # ✅ Users jadvalidan olindi
+                }
+            return None
+
+        except Exception as e:
+            print(f"❌ get_transaction_by_id xato: {e}")
+            return None
+
+    def update_transaction_status(self, trans_id: int, status: str, admin_id: int = None) -> bool:
+        """Tranzaksiya statusini yangilash"""
+        try:
+            sql = """
+            UPDATE Transactions 
+            SET status = ?, 
+                admin_id = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """
+            self.execute(sql, parameters=(status, admin_id, trans_id), commit=True)
+            return True
+
+        except Exception as e:
+            print(f"❌ update_transaction_status xato: {e}")
+            return False
+
+    def approve_transaction(self, transaction_id: int, admin_telegram_id: int) -> bool:
+        """Tranzaksiyani tasdiqlash va balansni yangilash"""
+        try:
+            trans = self.get_transaction_by_id(transaction_id)
+            if not trans:
                 return False
 
-            user_id, telegram_id, trans_type, amount, status = result
-
-            if status != 'pending':
-                print(f"Tranzaksiya allaqachon {status}")
+            if trans['status'] != 'pending':
+                print(f"Tranzaksiya allaqachon {trans['status']}")
                 return False
 
             # Balansni yangilash
-            if trans_type == 'deposit':
-                success = self.add_to_balance(telegram_id, amount)
-            elif trans_type == 'withdrawal':
-                success = self.deduct_from_balance(telegram_id, amount)
+            if trans['type'] == 'deposit':
+                success = self.add_to_balance(trans['telegram_id'], trans['amount'])
+            elif trans['type'] == 'withdrawal':
+                success = self.deduct_from_balance(trans['telegram_id'], trans['amount'])
             else:
                 success = False
 
@@ -317,7 +341,7 @@ class UserDatabase(Database):
                 return False
 
             # Tranzaksiya statusini yangilash
-            balance_after = self.get_user_balance(telegram_id)
+            balance_after = self.get_user_balance(trans['telegram_id'])
             admin_id = self.get_user_id(admin_telegram_id)
 
             sql = """
@@ -325,20 +349,14 @@ class UserDatabase(Database):
             SET status = 'approved',
                 balance_after = ?,
                 admin_id = ?,
-                updated_at = ?
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """
-
-            self.execute(
-                sql,
-                parameters=(balance_after, admin_id, datetime.now().isoformat(), transaction_id),
-                commit=True
-            )
-
+            self.execute(sql, parameters=(balance_after, admin_id, transaction_id), commit=True)
             return True
 
         except Exception as e:
-            print(f"Tranzaksiyani tasdiqlashda xato: {e}")
+            print(f"❌ Tranzaksiyani tasdiqlashda xato: {e}")
             return False
 
     def reject_transaction(self, transaction_id: int, admin_telegram_id: int = None) -> bool:
@@ -352,19 +370,13 @@ class UserDatabase(Database):
             UPDATE Transactions
             SET status = 'rejected',
                 admin_id = ?,
-                updated_at = ?
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND status = 'pending'
             """
-
-            self.execute(
-                sql,
-                parameters=(admin_id, datetime.now().isoformat(), transaction_id),
-                commit=True
-            )
-
+            self.execute(sql, parameters=(admin_id, transaction_id), commit=True)
             return True
         except Exception as e:
-            print(f"Tranzaksiyani rad etishda xato: {e}")
+            print(f"❌ Tranzaksiyani rad etishda xato: {e}")
             return False
 
     def get_pending_transactions(self) -> List[Dict]:
@@ -377,7 +389,6 @@ class UserDatabase(Database):
         WHERE t.status = 'pending'
         ORDER BY t.created_at DESC
         """
-
         results = self.execute(sql, fetchall=True)
 
         transactions = []
@@ -392,7 +403,6 @@ class UserDatabase(Database):
                 'receipt_file_id': row[6],
                 'created_at': row[7]
             })
-
         return transactions
 
     def get_user_transactions(self, telegram_id: int, limit: int = 10) -> List[Dict]:
@@ -405,7 +415,6 @@ class UserDatabase(Database):
         ORDER BY created_at DESC
         LIMIT ?
         """
-
         results = self.execute(sql, parameters=(telegram_id, limit), fetchall=True)
 
         transactions = []
@@ -420,101 +429,34 @@ class UserDatabase(Database):
                 'status': row[6],
                 'created_at': row[7]
             })
-
         return transactions
-
-    def get_transaction_by_id(self, trans_id: int) -> dict:
-        """
-        Tranzaksiyani ID bo'yicha olish
-
-        Bu metod admin callback handler'lar uchun zarur!
-        """
-        try:
-            sql = """
-            SELECT 
-                id,
-                telegram_id,
-                type,
-                amount,
-                description,
-                receipt_file_id,
-                status,
-                approved_by,
-                created_at,
-                updated_at
-            FROM Transactions 
-            WHERE id = ?
-            """
-            result = self.execute(sql, (trans_id,), fetchone=True)
-
-            if result:
-                return {
-                    'id': result[0],
-                    'telegram_id': result[1],
-                    'type': result[2],
-                    'amount': result[3],
-                    'description': result[4],
-                    'receipt_file_id': result[5],
-                    'status': result[6],
-                    'approved_by': result[7],
-                    'created_at': result[8],
-                    'updated_at': result[9]
-                }
-            return None
-
-        except Exception as e:
-            print(f"❌ get_transaction_by_id xato: {e}")
-            return None
 
     # ==================== PRICING METHODLAR ====================
 
     def get_price(self, service_type: str) -> Optional[float]:
         """Xizmat narxini olish"""
-        sql = """
-        SELECT price
-        FROM Pricing
-        WHERE service_type = ? AND is_active = TRUE
-        """
+        sql = "SELECT price FROM Pricing WHERE service_type = ? AND is_active = TRUE"
         result = self.execute(sql, parameters=(service_type,), fetchone=True)
         return float(result[0]) if result else None
 
-    def update_price(
-            self,
-            service_type: str,
-            new_price: float,
-            admin_telegram_id: int
-    ) -> bool:
-        """Narxni yangilash (admin)"""
+    def update_price(self, service_type: str, new_price: float, admin_telegram_id: int) -> bool:
+        """Narxni yangilash"""
         try:
             admin_id = self.get_user_id(admin_telegram_id)
-
             sql = """
             UPDATE Pricing
-            SET price = ?,
-                updated_by = ?,
-                updated_at = ?
+            SET price = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
             WHERE service_type = ?
             """
-
-            self.execute(
-                sql,
-                parameters=(new_price, admin_id, datetime.now().isoformat(), service_type),
-                commit=True
-            )
-
+            self.execute(sql, parameters=(new_price, admin_id, service_type), commit=True)
             return True
         except Exception as e:
-            print(f"Narxni yangilashda xato: {e}")
+            print(f"❌ Narxni yangilashda xato: {e}")
             return False
 
     def get_all_prices(self) -> List[Dict]:
         """Barcha narxlarni olish"""
-        sql = """
-        SELECT service_type, price, currency, description, is_active
-        FROM Pricing
-        ORDER BY service_type
-        """
-
+        sql = "SELECT service_type, price, currency, description, is_active FROM Pricing ORDER BY service_type"
         results = self.execute(sql, fetchall=True)
 
         prices = []
@@ -526,7 +468,6 @@ class UserDatabase(Database):
                 'description': row[3],
                 'is_active': bool(row[4])
             })
-
         return prices
 
     # ==================== PRESENTATION TASK METHODLAR ====================
@@ -537,7 +478,7 @@ class UserDatabase(Database):
             task_uuid: str,
             presentation_type: str,
             slide_count: int,
-            answers: str,  # JSON string
+            answers: str,
             amount_charged: float
     ) -> Optional[int]:
         """Yangi prezentatsiya task'i yaratish"""
@@ -553,20 +494,15 @@ class UserDatabase(Database):
             )
             VALUES (?, ?, ?, ?, ?, ?)
             """
-
             self.execute(
                 sql,
-                parameters=(
-                    user_id, task_uuid, presentation_type,
-                    slide_count, answers, amount_charged
-                ),
+                parameters=(user_id, task_uuid, presentation_type, slide_count, answers, amount_charged),
                 commit=True
             )
-
             return self.execute("SELECT last_insert_rowid()", fetchone=True)[0]
 
         except Exception as e:
-            print(f"Task yaratishda xato: {e}")
+            print(f"❌ Task yaratishda xato: {e}")
             return None
 
     def update_task_status(
@@ -595,26 +531,19 @@ class UserDatabase(Database):
                 parameters.append(error_message)
 
             if status == 'processing':
-                updates.append("started_at = ?")
-                parameters.append(datetime.now().isoformat())
+                updates.append("started_at = CURRENT_TIMESTAMP")
 
             if status in ['completed', 'failed']:
-                updates.append("completed_at = ?")
-                parameters.append(datetime.now().isoformat())
+                updates.append("completed_at = CURRENT_TIMESTAMP")
 
             parameters.append(task_uuid)
 
-            sql = f"""
-            UPDATE PresentationTasks
-            SET {', '.join(updates)}
-            WHERE task_uuid = ?
-            """
-
+            sql = f"UPDATE PresentationTasks SET {', '.join(updates)} WHERE task_uuid = ?"
             self.execute(sql, parameters=tuple(parameters), commit=True)
             return True
 
         except Exception as e:
-            print(f"Task statusini yangilashda xato: {e}")
+            print(f"❌ Task statusini yangilashda xato: {e}")
             return False
 
     def get_task_by_uuid(self, task_uuid: str) -> Optional[Dict]:
@@ -626,7 +555,6 @@ class UserDatabase(Database):
         FROM PresentationTasks
         WHERE task_uuid = ?
         """
-
         result = self.execute(sql, parameters=(task_uuid,), fetchone=True)
 
         if result:
@@ -646,7 +574,6 @@ class UserDatabase(Database):
                 'completed_at': result[12],
                 'created_at': result[13]
             }
-
         return None
 
     def get_user_tasks(self, telegram_id: int, limit: int = 5) -> List[Dict]:
@@ -659,7 +586,6 @@ class UserDatabase(Database):
         ORDER BY created_at DESC
         LIMIT ?
         """
-
         results = self.execute(sql, parameters=(telegram_id, limit), fetchall=True)
 
         tasks = []
@@ -674,7 +600,6 @@ class UserDatabase(Database):
                 'amount_charged': float(row[6]) if row[6] else 0.0,
                 'created_at': row[7]
             })
-
         return tasks
 
     def get_pending_tasks(self) -> List[Dict]:
@@ -685,7 +610,6 @@ class UserDatabase(Database):
         WHERE status = 'pending'
         ORDER BY created_at ASC
         """
-
         results = self.execute(sql, fetchall=True)
 
         tasks = []
@@ -698,25 +622,19 @@ class UserDatabase(Database):
                 'answers': row[4],
                 'created_at': row[5]
             })
-
         return tasks
 
     # ==================== STATISTIKA ====================
 
     def get_financial_stats(self) -> Dict:
         """Moliyaviy statistika"""
-        sql_total_balance = "SELECT SUM(balance) FROM Users"
-        sql_total_deposited = "SELECT SUM(total_deposited) FROM Users"
-        sql_total_spent = "SELECT SUM(total_spent) FROM Users"
-        sql_pending_deposits = """
-            SELECT SUM(amount) FROM Transactions 
-            WHERE transaction_type = 'deposit' AND status = 'pending'
-        """
-
-        total_balance = self.execute(sql_total_balance, fetchone=True)[0] or 0
-        total_deposited = self.execute(sql_total_deposited, fetchone=True)[0] or 0
-        total_spent = self.execute(sql_total_spent, fetchone=True)[0] or 0
-        pending_deposits = self.execute(sql_pending_deposits, fetchone=True)[0] or 0
+        total_balance = self.execute("SELECT SUM(balance) FROM Users", fetchone=True)[0] or 0
+        total_deposited = self.execute("SELECT SUM(total_deposited) FROM Users", fetchone=True)[0] or 0
+        total_spent = self.execute("SELECT SUM(total_spent) FROM Users", fetchone=True)[0] or 0
+        pending_deposits = self.execute(
+            "SELECT SUM(amount) FROM Transactions WHERE transaction_type = 'deposit' AND status = 'pending'",
+            fetchone=True
+        )[0] or 0
 
         return {
             'total_balance': float(total_balance),
@@ -726,11 +644,10 @@ class UserDatabase(Database):
             'total_revenue': float(total_deposited)
         }
 
-    # ==================== ESKI METHODLAR (saqlab qolish) ====================
+    # ==================== ESKI METHODLAR ====================
 
     def select_all_users(self):
-        sql = "SELECT * FROM Users"
-        return self.execute(sql, fetchall=True)
+        return self.execute("SELECT * FROM Users", fetchall=True)
 
     def select_user(self, **kwargs):
         sql = "SELECT * FROM Users WHERE "
@@ -744,99 +661,72 @@ class UserDatabase(Database):
         self.execute("DELETE FROM Users WHERE TRUE", commit=True)
 
     def update_user_last_active(self, telegram_id: int):
-        sql = """
-        UPDATE Users
-        SET last_active = ?
-        WHERE telegram_id = ?
-        """
-        last_active = datetime.now().isoformat()
-        self.execute(sql, parameters=(last_active, telegram_id), commit=True)
+        sql = "UPDATE Users SET last_active = CURRENT_TIMESTAMP WHERE telegram_id = ?"
+        self.execute(sql, parameters=(telegram_id,), commit=True)
 
     def deactivate_user(self, telegram_id: int):
-        sql = """
-        UPDATE Users
-        SET is_active = FALSE
-        WHERE telegram_id = ?
-        """
+        sql = "UPDATE Users SET is_active = FALSE WHERE telegram_id = ?"
         self.execute(sql, parameters=(telegram_id,), commit=True)
 
     def activate_user(self, telegram_id: int):
-        sql = """
-        UPDATE Users
-        SET is_active = TRUE
-        WHERE telegram_id = ?
-        """
+        sql = "UPDATE Users SET is_active = TRUE WHERE telegram_id = ?"
         self.execute(sql, parameters=(telegram_id,), commit=True)
 
     def mark_user_as_blocked(self, telegram_id: int):
-        sql = """
-        UPDATE Users
-        SET is_blocked = TRUE, is_active = FALSE
-        WHERE telegram_id = ?
-        """
+        sql = "UPDATE Users SET is_blocked = TRUE, is_active = FALSE WHERE telegram_id = ?"
         self.execute(sql, parameters=(telegram_id,), commit=True)
 
     def get_active_users(self):
-        sql = "SELECT * FROM Users WHERE is_active = TRUE"
-        return self.execute(sql, fetchall=True)
+        return self.execute("SELECT * FROM Users WHERE is_active = TRUE", fetchall=True)
 
     def get_inactive_users(self):
-        sql = "SELECT * FROM Users WHERE is_active = FALSE"
-        return self.execute(sql, fetchall=True)
+        return self.execute("SELECT * FROM Users WHERE is_active = FALSE", fetchall=True)
 
     def get_blocked_users(self):
-        sql = "SELECT * FROM Users WHERE is_blocked = TRUE"
-        return self.execute(sql, fetchall=True)
+        return self.execute("SELECT * FROM Users WHERE is_blocked = TRUE", fetchall=True)
 
     def count_active_users(self):
-        sql = "SELECT COUNT(*) FROM Users WHERE is_active = TRUE;"
-        return self.execute(sql, fetchone=True)[0]
+        return self.execute("SELECT COUNT(*) FROM Users WHERE is_active = TRUE;", fetchone=True)[0]
 
     def count_blocked_users(self):
-        sql = "SELECT COUNT(*) FROM Users WHERE is_blocked = TRUE;"
-        return self.execute(sql, fetchone=True)[0]
+        return self.execute("SELECT COUNT(*) FROM Users WHERE is_blocked = TRUE;", fetchone=True)[0]
 
     def count_users_last_12_hours(self):
         time_threshold = (datetime.now() - timedelta(hours=12)).isoformat()
-        sql = "SELECT COUNT(*) FROM Users WHERE created_at >= ?;"
-        return self.execute(sql, parameters=(time_threshold,), fetchone=True)[0]
+        return \
+        self.execute("SELECT COUNT(*) FROM Users WHERE created_at >= ?;", parameters=(time_threshold,), fetchone=True)[
+            0]
 
     def count_users_today(self):
         today = datetime.now().date().isoformat()
-        sql = "SELECT COUNT(*) FROM Users WHERE DATE(created_at) = ?;"
-        return self.execute(sql, parameters=(today,), fetchone=True)[0]
+        return \
+        self.execute("SELECT COUNT(*) FROM Users WHERE DATE(created_at) = ?;", parameters=(today,), fetchone=True)[0]
 
     def count_users_this_week(self):
         start_of_week = (datetime.now() - timedelta(days=datetime.now().weekday())).date().isoformat()
-        sql = "SELECT COUNT(*) FROM Users WHERE DATE(created_at) >= ?;"
-        return self.execute(sql, parameters=(start_of_week,), fetchone=True)[0]
+        return self.execute("SELECT COUNT(*) FROM Users WHERE DATE(created_at) >= ?;", parameters=(start_of_week,),
+                            fetchone=True)[0]
 
     def count_users_this_month(self):
         start_of_month = datetime.now().replace(day=1).date().isoformat()
-        sql = "SELECT COUNT(*) FROM Users WHERE DATE(created_at) >= ?;"
-        return self.execute(sql, parameters=(start_of_month,), fetchone=True)[0]
+        return self.execute("SELECT COUNT(*) FROM Users WHERE DATE(created_at) >= ?;", parameters=(start_of_month,),
+                            fetchone=True)[0]
 
     # Adminlar
     def add_admin(self, user_id: int, name: str, is_super_admin: bool = False):
         if not self.check_if_admin(user_id):
-            sql = """
-            INSERT INTO Admins (user_id, name, is_super_admin)
-            VALUES (?, ?, ?)
-            """
+            sql = "INSERT INTO Admins (user_id, name, is_super_admin) VALUES (?, ?, ?)"
             self.execute(sql, parameters=(user_id, name, is_super_admin), commit=True)
 
     def remove_admin(self, user_id: int):
-        sql = "DELETE FROM Admins WHERE user_id = ?"
-        self.execute(sql, parameters=(user_id,), commit=True)
+        self.execute("DELETE FROM Admins WHERE user_id = ?", parameters=(user_id,), commit=True)
 
     def get_all_admins(self):
         sql = """
         SELECT Admins.user_id, Users.telegram_id, Admins.name, Admins.is_super_admin
-        FROM Admins
-        JOIN Users ON Admins.user_id = Users.id
+        FROM Admins JOIN Users ON Admins.user_id = Users.id
         """
         result = self.execute(sql, fetchall=True)
-
         if not result:
             return []
 
@@ -851,149 +741,9 @@ class UserDatabase(Database):
         return admins
 
     def check_if_admin(self, user_id: int) -> bool:
-        sql = "SELECT 1 FROM Admins WHERE user_id = ?"
-        result = self.execute(sql, parameters=(user_id,), fetchone=True)
+        result = self.execute("SELECT 1 FROM Admins WHERE user_id = ?", parameters=(user_id,), fetchone=True)
         return result is not None
 
     def update_admin_status(self, user_id: int, is_super_admin: bool):
-        sql = """
-        UPDATE Admins
-        SET is_super_admin = ?
-        WHERE user_id = ?
-        """
+        sql = "UPDATE Admins SET is_super_admin = ? WHERE user_id = ?"
         self.execute(sql, parameters=(is_super_admin, user_id), commit=True)
-
-    def update_transaction_status(self, trans_id: int, status: str, admin_id: int = None) -> bool:
-        """
-        Tranzaksiya statusini yangilash
-
-        status: 'pending', 'approved', 'rejected'
-        admin_id: Tasdiqlagan/rad etgan admin ID
-        """
-        try:
-            sql = """
-            UPDATE Transactions 
-            SET status = ?, 
-                approved_by = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """
-            self.execute(sql, (status, admin_id, trans_id), commit=True)
-            return True
-
-        except Exception as e:
-            print(f"❌ update_transaction_status xato: {e}")
-            return False
-
-    def add_to_balance(self, telegram_id: int, amount: float) -> bool:
-        """
-        User balansiga pul qo'shish
-        """
-        try:
-            sql = """
-            UPDATE Users 
-            SET balance = balance + ?
-            WHERE telegram_id = ?
-            """
-            self.execute(sql, (amount, telegram_id), commit=True)
-            return True
-
-        except Exception as e:
-            print(f"❌ add_to_balance xato: {e}")
-            return False
-
-    def deduct_from_balance(self, telegram_id: int, amount: float) -> bool:
-        """
-        User balansidan pul yechish
-
-        MUHIM: balance >= amount bo'lishi kerak!
-        """
-        try:
-            # Avval balansni tekshirish
-            current = self.get_user_balance(telegram_id)
-
-            if current < amount:
-                print(f"❌ Balans yetarli emas: {current} < {amount}")
-                return False
-
-            sql = """
-            UPDATE Users 
-            SET balance = balance - ?
-            WHERE telegram_id = ? AND balance >= ?
-            """
-            self.execute(sql, (amount, telegram_id, amount), commit=True)
-
-            # Tekshirish
-            new_balance = self.get_user_balance(telegram_id)
-            if new_balance == current - amount:
-                return True
-            else:
-                print(f"⚠️ Balans kutilganidek o'zgarmadi: {current} -> {new_balance}")
-                return True  # Baribir True qaytarish
-
-        except Exception as e:
-            print(f"❌ deduct_from_balance xato: {e}")
-            return False
-
-    def get_user_balance(self, telegram_id: int) -> float:
-        """
-        User balansini olish
-        """
-        try:
-            sql = "SELECT balance FROM Users WHERE telegram_id = ?"
-            result = self.execute(sql, (telegram_id,), fetchone=True)
-
-            if result:
-                return float(result[0])
-            return 0.0
-
-        except Exception as e:
-            print(f"❌ get_user_balance xato: {e}")
-            return 0.0
-
-    def create_transaction(self, telegram_id: int, transaction_type: str, amount: float,
-                           description: str = None, receipt_file_id: str = None,
-                           status: str = 'pending') -> int:
-        """
-        Yangi tranzaksiya yaratish
-
-        Returns: Yaratilgan tranzaksiya ID yoki None
-        """
-        try:
-            sql = """
-            INSERT INTO Transactions (
-                telegram_id, 
-                type, 
-                amount, 
-                description, 
-                receipt_file_id, 
-                status,
-                created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """
-
-            cursor = self.execute(
-                sql,
-                (telegram_id, transaction_type, amount, description, receipt_file_id, status),
-                commit=True
-            )
-
-            # lastrowid ni olish
-            if hasattr(cursor, 'lastrowid'):
-                return cursor.lastrowid
-
-            # Agar lastrowid ishlamasa
-            result = self.execute(
-                "SELECT id FROM Transactions WHERE telegram_id = ? ORDER BY id DESC LIMIT 1",
-                (telegram_id,),
-                fetchone=True
-            )
-
-            if result:
-                return result[0]
-
-            return None
-
-        except Exception as e:
-            print(f"❌ create_transaction xato: {e}")
-            return None
