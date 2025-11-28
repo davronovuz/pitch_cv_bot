@@ -681,301 +681,301 @@ class UserDatabase(Database):
 # ==================== KENGAYTIRILGAN STATISTIKA METODLARI ====================
 # Bu metodlarni utils/db/users_db.py fayliga qo'shing
 
-from datetime import datetime, timedelta
-import pytz
+    from datetime import datetime, timedelta
+    import pytz
 
-# Toshkent timezone
-TASHKENT_TZ = pytz.timezone('Asia/Tashkent')
-
-
-def get_tashkent_now(self):
-    """Hozirgi Toshkent vaqtini olish"""
-    return datetime.now(TASHKENT_TZ)
+    # Toshkent timezone
+    TASHKENT_TZ = pytz.timezone('Asia/Tashkent')
 
 
-def get_tashkent_today_range(self):
-    """Bugungi kun boshlanishi va tugashi (Toshkent vaqti)"""
-    now = datetime.now(TASHKENT_TZ)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
-
-    # UTC ga o'tkazish (database UTC da saqlaydi)
-    today_start_utc = today_start.astimezone(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
-    today_end_utc = today_end.astimezone(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
-
-    return today_start_utc, today_end_utc
+    def get_tashkent_now(self):
+        """Hozirgi Toshkent vaqtini olish"""
+        return datetime.now(TASHKENT_TZ)
 
 
-def get_extended_statistics(self) -> dict:
-    """
-    Kengaytirilgan statistikalar - Toshkent vaqti bo'yicha
-    """
-    try:
+    def get_tashkent_today_range(self):
+        """Bugungi kun boshlanishi va tugashi (Toshkent vaqti)"""
         now = datetime.now(TASHKENT_TZ)
-        today_start, today_end = self.get_tashkent_today_range()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-        # Hafta boshlanishi (Dushanba)
-        week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0)
-        week_start_utc = week_start.astimezone(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
+        # UTC ga o'tkazish (database UTC da saqlaydi)
+        today_start_utc = today_start.astimezone(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
+        today_end_utc = today_end.astimezone(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
 
-        # Oy boshlanishi
-        month_start = now.replace(day=1, hour=0, minute=0, second=0)
-        month_start_utc = month_start.astimezone(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
+        return today_start_utc, today_end_utc
 
-        stats = {}
 
-        # ==================== FOYDALANUVCHILAR ====================
+    def get_extended_statistics(self) -> dict:
+        """
+        Kengaytirilgan statistikalar - Toshkent vaqti bo'yicha
+        """
+        try:
+            now = datetime.now(TASHKENT_TZ)
+            today_start, today_end = self.get_tashkent_today_range()
 
-        # Jami userlar
-        result = self.execute("SELECT COUNT(*) FROM Users", fetchone=True)
-        stats['total_users'] = result[0] if result else 0
+            # Hafta boshlanishi (Dushanba)
+            week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0)
+            week_start_utc = week_start.astimezone(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
 
-        # Balansi bor userlar
-        result = self.execute("SELECT COUNT(*) FROM Users WHERE balance > 0", fetchone=True)
-        stats['users_with_balance'] = result[0] if result else 0
+            # Oy boshlanishi
+            month_start = now.replace(day=1, hour=0, minute=0, second=0)
+            month_start_utc = month_start.astimezone(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
 
-        # Balansi yo'q userlar
-        stats['users_without_balance'] = stats['total_users'] - stats['users_with_balance']
+            stats = {}
 
-        # Bugun ro'yxatdan o'tganlar
+            # ==================== FOYDALANUVCHILAR ====================
+
+            # Jami userlar
+            result = self.execute("SELECT COUNT(*) FROM Users", fetchone=True)
+            stats['total_users'] = result[0] if result else 0
+
+            # Balansi bor userlar
+            result = self.execute("SELECT COUNT(*) FROM Users WHERE balance > 0", fetchone=True)
+            stats['users_with_balance'] = result[0] if result else 0
+
+            # Balansi yo'q userlar
+            stats['users_without_balance'] = stats['total_users'] - stats['users_with_balance']
+
+            # Bugun ro'yxatdan o'tganlar
+            result = self.execute(
+                "SELECT COUNT(*) FROM Users WHERE created_at >= ? AND created_at <= ?",
+                parameters=(today_start, today_end),
+                fetchone=True
+            )
+            stats['new_users_today'] = result[0] if result else 0
+
+            # Bu hafta ro'yxatdan o'tganlar
+            result = self.execute(
+                "SELECT COUNT(*) FROM Users WHERE created_at >= ?",
+                parameters=(week_start_utc,),
+                fetchone=True
+            )
+            stats['new_users_week'] = result[0] if result else 0
+
+            # Bu oy ro'yxatdan o'tganlar
+            result = self.execute(
+                "SELECT COUNT(*) FROM Users WHERE created_at >= ?",
+                parameters=(month_start_utc,),
+                fetchone=True
+            )
+            stats['new_users_month'] = result[0] if result else 0
+
+            # ==================== BALANSLAR ====================
+
+            # Jami balans
+            result = self.execute("SELECT COALESCE(SUM(balance), 0) FROM Users", fetchone=True)
+            stats['total_balance'] = float(result[0]) if result else 0.0
+
+            # O'rtacha balans (balansi bor userlar orasida)
+            result = self.execute(
+                "SELECT COALESCE(AVG(balance), 0) FROM Users WHERE balance > 0",
+                fetchone=True
+            )
+            stats['avg_balance'] = float(result[0]) if result else 0.0
+
+            # Eng katta balans
+            result = self.execute("SELECT COALESCE(MAX(balance), 0) FROM Users", fetchone=True)
+            stats['max_balance'] = float(result[0]) if result else 0.0
+
+            # ==================== BUGUNGI TRANZAKSIYALAR ====================
+
+            # Bugun to'ldirilgan (approved deposits)
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'deposit' 
+                   AND status = 'approved'
+                   AND created_at >= ? AND created_at <= ?""",
+                parameters=(today_start, today_end),
+                fetchone=True
+            )
+            stats['today_deposited'] = float(result[0]) if result else 0.0
+            stats['today_deposit_count'] = result[1] if result else 0
+
+            # Bugun sarflangan (withdrawals)
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'withdrawal' 
+                   AND status = 'approved'
+                   AND created_at >= ? AND created_at <= ?""",
+                parameters=(today_start, today_end),
+                fetchone=True
+            )
+            stats['today_spent'] = float(result[0]) if result else 0.0
+            stats['today_spent_count'] = result[1] if result else 0
+
+            # Bugun kutilayotgan to'lovlar
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'deposit' 
+                   AND status = 'pending'
+                   AND created_at >= ? AND created_at <= ?""",
+                parameters=(today_start, today_end),
+                fetchone=True
+            )
+            stats['today_pending'] = float(result[0]) if result else 0.0
+            stats['today_pending_count'] = result[1] if result else 0
+
+            # ==================== HAFTALIK TRANZAKSIYALAR ====================
+
+            # Bu hafta to'ldirilgan
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'deposit' 
+                   AND status = 'approved'
+                   AND created_at >= ?""",
+                parameters=(week_start_utc,),
+                fetchone=True
+            )
+            stats['week_deposited'] = float(result[0]) if result else 0.0
+            stats['week_deposit_count'] = result[1] if result else 0
+
+            # Bu hafta sarflangan
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'withdrawal' 
+                   AND status = 'approved'
+                   AND created_at >= ?""",
+                parameters=(week_start_utc,),
+                fetchone=True
+            )
+            stats['week_spent'] = float(result[0]) if result else 0.0
+            stats['week_spent_count'] = result[1] if result else 0
+
+            # ==================== OYLIK TRANZAKSIYALAR ====================
+
+            # Bu oy to'ldirilgan
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'deposit' 
+                   AND status = 'approved'
+                   AND created_at >= ?""",
+                parameters=(month_start_utc,),
+                fetchone=True
+            )
+            stats['month_deposited'] = float(result[0]) if result else 0.0
+            stats['month_deposit_count'] = result[1] if result else 0
+
+            # Bu oy sarflangan
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'withdrawal' 
+                   AND status = 'approved'
+                   AND created_at >= ?""",
+                parameters=(month_start_utc,),
+                fetchone=True
+            )
+            stats['month_spent'] = float(result[0]) if result else 0.0
+            stats['month_spent_count'] = result[1] if result else 0
+
+            # ==================== JAMI (ALL TIME) ====================
+
+            # Jami to'ldirilgan
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'deposit' AND status = 'approved'""",
+                fetchone=True
+            )
+            stats['total_deposited'] = float(result[0]) if result else 0.0
+            stats['total_deposit_count'] = result[1] if result else 0
+
+            # Jami sarflangan
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE transaction_type = 'withdrawal' AND status = 'approved'""",
+                fetchone=True
+            )
+            stats['total_spent'] = float(result[0]) if result else 0.0
+            stats['total_spent_count'] = result[1] if result else 0
+
+            # Jami kutilayotgan
+            result = self.execute(
+                """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
+                   WHERE status = 'pending'""",
+                fetchone=True
+            )
+            stats['total_pending'] = float(result[0]) if result else 0.0
+            stats['total_pending_count'] = result[1] if result else 0
+
+            # ==================== TASK STATISTIKA ====================
+
+            # Bugungi tasklar
+            result = self.execute(
+                """SELECT status, COUNT(*) FROM PresentationTasks 
+                   WHERE created_at >= ? AND created_at <= ?
+                   GROUP BY status""",
+                parameters=(today_start, today_end),
+                fetchall=True
+            )
+            stats['today_tasks'] = {row[0]: row[1] for row in result} if result else {}
+            stats['today_tasks_total'] = sum(stats['today_tasks'].values())
+
+            # Jami tasklar
+            result = self.execute(
+                "SELECT status, COUNT(*) FROM PresentationTasks GROUP BY status",
+                fetchall=True
+            )
+            stats['all_tasks'] = {row[0]: row[1] for row in result} if result else {}
+
+            # ==================== TOP USERLAR ====================
+
+            # Eng ko'p balansli 5 user
+            result = self.execute(
+                """SELECT u.telegram_id, u.username, u.balance 
+                   FROM Users u 
+                   WHERE u.balance > 0 
+                   ORDER BY u.balance DESC LIMIT 5""",
+                fetchall=True
+            )
+            stats['top_balance_users'] = [
+                {'telegram_id': r[0], 'username': r[1] or 'N/A', 'balance': r[2]}
+                for r in result
+            ] if result else []
+
+            # Bugun eng ko'p to'ldirgan userlar
+            result = self.execute(
+                """SELECT u.telegram_id, u.username, SUM(t.amount) as total
+                   FROM Transactions t
+                   JOIN Users u ON t.user_id = u.id
+                   WHERE t.transaction_type = 'deposit' 
+                   AND t.status = 'approved'
+                   AND t.created_at >= ? AND t.created_at <= ?
+                   GROUP BY u.telegram_id
+                   ORDER BY total DESC LIMIT 5""",
+                parameters=(today_start, today_end),
+                fetchall=True
+            )
+            stats['top_depositors_today'] = [
+                {'telegram_id': r[0], 'username': r[1] or 'N/A', 'amount': r[2]}
+                for r in result
+            ] if result else []
+
+            # Toshkent vaqti
+            stats['current_time'] = now.strftime('%Y-%m-%d %H:%M:%S')
+            stats['timezone'] = 'Asia/Tashkent (UTC+5)'
+
+            return stats
+
+        except Exception as e:
+            print(f"❌ Extended statistics xato: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+
+
+    def get_total_balance(self) -> float:
+        """Barcha userlarning jami balansini olish"""
         result = self.execute(
-            "SELECT COUNT(*) FROM Users WHERE created_at >= ? AND created_at <= ?",
-            parameters=(today_start, today_end),
+            "SELECT COALESCE(SUM(balance), 0) FROM Users",
             fetchone=True
         )
-        stats['new_users_today'] = result[0] if result else 0
+        return float(result[0]) if result else 0.0
 
-        # Bu hafta ro'yxatdan o'tganlar
+
+    def count_users_with_balance(self) -> int:
+        """Balansi 0 dan katta userlar soni"""
         result = self.execute(
-            "SELECT COUNT(*) FROM Users WHERE created_at >= ?",
-            parameters=(week_start_utc,),
+            "SELECT COUNT(*) FROM Users WHERE balance > 0",
             fetchone=True
         )
-        stats['new_users_week'] = result[0] if result else 0
-
-        # Bu oy ro'yxatdan o'tganlar
-        result = self.execute(
-            "SELECT COUNT(*) FROM Users WHERE created_at >= ?",
-            parameters=(month_start_utc,),
-            fetchone=True
-        )
-        stats['new_users_month'] = result[0] if result else 0
-
-        # ==================== BALANSLAR ====================
-
-        # Jami balans
-        result = self.execute("SELECT COALESCE(SUM(balance), 0) FROM Users", fetchone=True)
-        stats['total_balance'] = float(result[0]) if result else 0.0
-
-        # O'rtacha balans (balansi bor userlar orasida)
-        result = self.execute(
-            "SELECT COALESCE(AVG(balance), 0) FROM Users WHERE balance > 0",
-            fetchone=True
-        )
-        stats['avg_balance'] = float(result[0]) if result else 0.0
-
-        # Eng katta balans
-        result = self.execute("SELECT COALESCE(MAX(balance), 0) FROM Users", fetchone=True)
-        stats['max_balance'] = float(result[0]) if result else 0.0
-
-        # ==================== BUGUNGI TRANZAKSIYALAR ====================
-
-        # Bugun to'ldirilgan (approved deposits)
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'deposit' 
-               AND status = 'approved'
-               AND created_at >= ? AND created_at <= ?""",
-            parameters=(today_start, today_end),
-            fetchone=True
-        )
-        stats['today_deposited'] = float(result[0]) if result else 0.0
-        stats['today_deposit_count'] = result[1] if result else 0
-
-        # Bugun sarflangan (withdrawals)
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'withdrawal' 
-               AND status = 'approved'
-               AND created_at >= ? AND created_at <= ?""",
-            parameters=(today_start, today_end),
-            fetchone=True
-        )
-        stats['today_spent'] = float(result[0]) if result else 0.0
-        stats['today_spent_count'] = result[1] if result else 0
-
-        # Bugun kutilayotgan to'lovlar
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'deposit' 
-               AND status = 'pending'
-               AND created_at >= ? AND created_at <= ?""",
-            parameters=(today_start, today_end),
-            fetchone=True
-        )
-        stats['today_pending'] = float(result[0]) if result else 0.0
-        stats['today_pending_count'] = result[1] if result else 0
-
-        # ==================== HAFTALIK TRANZAKSIYALAR ====================
-
-        # Bu hafta to'ldirilgan
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'deposit' 
-               AND status = 'approved'
-               AND created_at >= ?""",
-            parameters=(week_start_utc,),
-            fetchone=True
-        )
-        stats['week_deposited'] = float(result[0]) if result else 0.0
-        stats['week_deposit_count'] = result[1] if result else 0
-
-        # Bu hafta sarflangan
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'withdrawal' 
-               AND status = 'approved'
-               AND created_at >= ?""",
-            parameters=(week_start_utc,),
-            fetchone=True
-        )
-        stats['week_spent'] = float(result[0]) if result else 0.0
-        stats['week_spent_count'] = result[1] if result else 0
-
-        # ==================== OYLIK TRANZAKSIYALAR ====================
-
-        # Bu oy to'ldirilgan
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'deposit' 
-               AND status = 'approved'
-               AND created_at >= ?""",
-            parameters=(month_start_utc,),
-            fetchone=True
-        )
-        stats['month_deposited'] = float(result[0]) if result else 0.0
-        stats['month_deposit_count'] = result[1] if result else 0
-
-        # Bu oy sarflangan
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'withdrawal' 
-               AND status = 'approved'
-               AND created_at >= ?""",
-            parameters=(month_start_utc,),
-            fetchone=True
-        )
-        stats['month_spent'] = float(result[0]) if result else 0.0
-        stats['month_spent_count'] = result[1] if result else 0
-
-        # ==================== JAMI (ALL TIME) ====================
-
-        # Jami to'ldirilgan
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'deposit' AND status = 'approved'""",
-            fetchone=True
-        )
-        stats['total_deposited'] = float(result[0]) if result else 0.0
-        stats['total_deposit_count'] = result[1] if result else 0
-
-        # Jami sarflangan
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE transaction_type = 'withdrawal' AND status = 'approved'""",
-            fetchone=True
-        )
-        stats['total_spent'] = float(result[0]) if result else 0.0
-        stats['total_spent_count'] = result[1] if result else 0
-
-        # Jami kutilayotgan
-        result = self.execute(
-            """SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM Transactions 
-               WHERE status = 'pending'""",
-            fetchone=True
-        )
-        stats['total_pending'] = float(result[0]) if result else 0.0
-        stats['total_pending_count'] = result[1] if result else 0
-
-        # ==================== TASK STATISTIKA ====================
-
-        # Bugungi tasklar
-        result = self.execute(
-            """SELECT status, COUNT(*) FROM PresentationTasks 
-               WHERE created_at >= ? AND created_at <= ?
-               GROUP BY status""",
-            parameters=(today_start, today_end),
-            fetchall=True
-        )
-        stats['today_tasks'] = {row[0]: row[1] for row in result} if result else {}
-        stats['today_tasks_total'] = sum(stats['today_tasks'].values())
-
-        # Jami tasklar
-        result = self.execute(
-            "SELECT status, COUNT(*) FROM PresentationTasks GROUP BY status",
-            fetchall=True
-        )
-        stats['all_tasks'] = {row[0]: row[1] for row in result} if result else {}
-
-        # ==================== TOP USERLAR ====================
-
-        # Eng ko'p balansli 5 user
-        result = self.execute(
-            """SELECT u.telegram_id, u.username, u.balance 
-               FROM Users u 
-               WHERE u.balance > 0 
-               ORDER BY u.balance DESC LIMIT 5""",
-            fetchall=True
-        )
-        stats['top_balance_users'] = [
-            {'telegram_id': r[0], 'username': r[1] or 'N/A', 'balance': r[2]}
-            for r in result
-        ] if result else []
-
-        # Bugun eng ko'p to'ldirgan userlar
-        result = self.execute(
-            """SELECT u.telegram_id, u.username, SUM(t.amount) as total
-               FROM Transactions t
-               JOIN Users u ON t.user_id = u.id
-               WHERE t.transaction_type = 'deposit' 
-               AND t.status = 'approved'
-               AND t.created_at >= ? AND t.created_at <= ?
-               GROUP BY u.telegram_id
-               ORDER BY total DESC LIMIT 5""",
-            parameters=(today_start, today_end),
-            fetchall=True
-        )
-        stats['top_depositors_today'] = [
-            {'telegram_id': r[0], 'username': r[1] or 'N/A', 'amount': r[2]}
-            for r in result
-        ] if result else []
-
-        # Toshkent vaqti
-        stats['current_time'] = now.strftime('%Y-%m-%d %H:%M:%S')
-        stats['timezone'] = 'Asia/Tashkent (UTC+5)'
-
-        return stats
-
-    except Exception as e:
-        print(f"❌ Extended statistics xato: {e}")
-        import traceback
-        traceback.print_exc()
-        return {}
-
-
-def get_total_balance(self) -> float:
-    """Barcha userlarning jami balansini olish"""
-    result = self.execute(
-        "SELECT COALESCE(SUM(balance), 0) FROM Users",
-        fetchone=True
-    )
-    return float(result[0]) if result else 0.0
-
-
-def count_users_with_balance(self) -> int:
-    """Balansi 0 dan katta userlar soni"""
-    result = self.execute(
-        "SELECT COUNT(*) FROM Users WHERE balance > 0",
-        fetchone=True
-    )
-    return result[0] if result else 0
+        return result[0] if result else 0
