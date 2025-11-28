@@ -689,7 +689,6 @@ class UserDatabase(Database):
 
 
     def get_tashkent_now(self):
-        """Hozirgi Toshkent vaqtini olish"""
         return datetime.now(TASHKENT_TZ)
 
 
