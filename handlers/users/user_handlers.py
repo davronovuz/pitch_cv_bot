@@ -112,7 +112,7 @@ async def start_handler(message: types.Message, state: FSMContext):
         welcome_text = f"""
 👋 <b>Assalomu alaykum, {user.first_name}!</b>
 
-🎨 <b>Men professional prezentatsiyalar yaratadigam bot!</b>
+🎨 <b>Men professional prezentatsiyalar yaratadigan bot!</b>
 
 💰 <b>Sizning balansingiz:</b> {balance:,.0f} so'm
 
