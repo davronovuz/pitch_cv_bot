@@ -61,8 +61,8 @@ async def send_admin_notification(trans_id: int, user_id: int, amount: float, fi
         # Inline keyboard yaratish
         keyboard = InlineKeyboardMarkup(row_width=2)
         keyboard.add(
-            InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_trans_{trans_id}"),
-            InlineKeyboardButton("❌ Rad etish", callback_data=f"reject_trans_{trans_id}")
+            InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_trans:{trans_id}"),
+            InlineKeyboardButton("❌ Rad etish",callback_data=f"reject_trans:{trans_id}")
         )
 
         # User ma'lumotlari
