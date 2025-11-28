@@ -147,7 +147,7 @@ async def pitch_deck_start(message: types.Message, state: FSMContext):
     try:
         price = user_db.get_price('pitch_deck')
         if not price:
-            price = 5000
+            price = 10000
 
         balance = user_db.get_user_balance(telegram_id)
 
