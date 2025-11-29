@@ -353,6 +353,60 @@ Tayyor bo'lgach sizga <b>professional PPTX fayl</b> yuboriladi! 🎉
         await state.finish()
 
 
+
+@dp.message_handler(state=PitchDeckStates.waiting_for_answer)
+async def pitch_deck_answer(message: types.Message, state: FSMContext):
+    """Pitch Deck savollariga javoblarni qabul qilish"""
+    user_data = await state.get_data()
+    current_q = user_data.get('current_question', 0)
+    answers = user_data.get('answers', [])
+
+    # Javobni qo'shish
+    answers.append(message.text.strip())
+    next_q = current_q + 1
+
+    if next_q < len(PITCH_QUESTIONS):
+        # Keyingi savol
+        await state.update_data(current_question=next_q, answers=answers)
+        progress = f"✅ {next_q}/{len(PITCH_QUESTIONS)} savol javoblandi\n\n"
+        await message.answer(progress + PITCH_QUESTIONS[next_q], reply_markup=cancel_keyboard(), parse_mode='HTML')
+    else:
+        # Barcha savollar tugadi
+        await state.update_data(answers=answers)
+        price = user_data.get('price', 50000)
+        balance = user_db.get_user_balance(message.from_user.id)
+
+        # ✅ YANGI: Bepul tekshirish
+        free_left = user_db.get_free_presentations(message.from_user.id)
+
+        summary = f"""
+🎉 <b>Barcha savollar tugadi!</b>
+
+📊 Jami {len(answers)} ta javob qabul qilindi
+"""
+
+        if free_left > 0:
+            summary += f"""
+🎁 <b>BEPUL!</b>
+Sizda {free_left} ta bepul prezentatsiya bor.
+Bu Pitch Deck TEKIN bo'ladi!
+
+✅ Pitch Deck yaratishni boshlaymizmi?
+"""
+        else:
+            summary += f"""
+💰 <b>To'lov ma'lumotlari:</b>
+Narx: {price:,.0f} so'm
+Balansingiz: {balance:,.0f} so'm
+Qoladi: {(balance - price):,.0f} so'm
+
+✅ Pitch Deck yaratishni boshlaymizmi?
+"""
+
+        await message.answer(summary, reply_markup=confirm_keyboard(), parse_mode='HTML')
+        await PitchDeckStates.confirming_creation.set()
+
+
 # ============ 3. PREZENTATSIYA START - presentation_start() ALMASHTIRILADI ============
 
 @dp.message_handler(Text(equals="📊 Prezentatsiya yaratish"), state='*')
