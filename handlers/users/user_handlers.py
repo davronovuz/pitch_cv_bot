@@ -407,6 +407,57 @@ async def presentation_start(message: types.Message, state: FSMContext):
         await message.answer("❌ Xatolik yuz berdi.")
 
 
+# ==================== YETISHMAYOTGAN HANDLERLAR ====================
+# Bu 2 ta handlerni user_handlers.py ga qo'shing
+# presentation_start() dan KEYIN, presentation_slide_count() dan OLDIN
+
+
+@dp.message_handler(state=PresentationStates.waiting_for_topic)
+async def presentation_topic(message: types.Message, state: FSMContext):
+    """Mavzuni qabul qilish"""
+    topic = message.text.strip()
+    await state.update_data(topic=topic)
+
+    text = f"""
+✅ Mavzu qabul qilindi: <b>{topic}</b>
+
+📝 Endi qo'shimcha ma'lumotlar kiriting:
+
+- Asosiy nuqtalar
+- Qamrab olish kerak bo'lgan mavzular
+- Maqsadli auditoriya
+- Maxsus talablar
+
+Yoki "o'tkazib yuborish" yozing.
+"""
+
+    await message.answer(text, reply_markup=cancel_keyboard(), parse_mode='HTML')
+    await PresentationStates.waiting_for_details.set()
+
+
+@dp.message_handler(state=PresentationStates.waiting_for_details)
+async def presentation_details(message: types.Message, state: FSMContext):
+    """Qo'shimcha ma'lumotlarni qabul qilish"""
+    details = message.text.strip()
+
+    if details.lower() in ['o\'tkazib yuborish', 'otkazib yuborish', 'skip', 'yo\'q', 'yoq']:
+        details = "Qo'shimcha ma'lumot yo'q"
+
+    await state.update_data(details=details)
+
+    text = """
+🔢 <b>Slaydlar sonini kiriting:</b>
+
+Minimal: 5 slayd
+Maksimal: 20 slayd
+
+Masalan: 10
+"""
+
+    await message.answer(text, reply_markup=cancel_keyboard(), parse_mode='HTML')
+    await PresentationStates.waiting_for_slide_count.set()
+
+
 # ============ 4. PREZENTATSIYA SLIDE COUNT - presentation_slide_count() ALMASHTIRILADI ============
 
 @dp.message_handler(state=PresentationStates.waiting_for_slide_count)
@@ -606,6 +657,9 @@ Tayyor bo'lgach sizga <b>PPTX fayl</b> yuboriladi! 🎉
         logger.error(f"❌ Prezentatsiya yaratishda xato: {e}")
         await message.answer("❌ <b>Xatolik yuz berdi!</b>", parse_mode='HTML')
         await state.finish()
+
+
+
 # ==================== BALANS ====================
 @dp.message_handler(Text(equals="💰 Balansim"), state='*')
 async def balance_info(message: types.Message, state: FSMContext):
