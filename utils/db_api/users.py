@@ -13,6 +13,7 @@ class UserDatabase(Database):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             telegram_id BIGINT NOT NULL UNIQUE,
             username VARCHAR(255) NULL,
+            ALTER TABLE Users ADD COLUMN free_presentations INTEGER DEFAULT 2;
             balance DECIMAL(10, 2) DEFAULT 0.00,
             total_spent DECIMAL(10, 2) DEFAULT 0.00,
             total_deposited DECIMAL(10, 2) DEFAULT 0.00,
@@ -978,3 +979,108 @@ class UserDatabase(Database):
             fetchone=True
         )
         return result[0] if result else 0
+
+
+
+    def get_free_presentations(self, telegram_id: int) -> int:
+        """
+        Foydalanuvchining bepul prezentatsiya qoldig'ini olish
+
+        Returns:
+            int: Qolgan bepul prezentatsiyalar soni (default: 2)
+        """
+        try:
+            result = self.execute(
+                "SELECT free_presentations FROM Users WHERE telegram_id = ?",
+                parameters=(telegram_id,),
+                fetchone=True
+            )
+
+            if result and result[0] is not None:
+                return int(result[0])
+
+            # Agar ustun yo'q yoki NULL bo'lsa, 2 qaytarish
+            return 2
+
+        except Exception as e:
+            print(f"❌ get_free_presentations xato: {e}")
+            return 0
+
+    def use_free_presentation(self, telegram_id: int) -> bool:
+        """
+        Bepul prezentatsiyani ishlatish (1 ta kamaytirish)
+
+        Returns:
+            bool: Muvaffaqiyatli bo'lsa True
+        """
+        try:
+            current_free = self.get_free_presentations(telegram_id)
+
+            if current_free <= 0:
+                return False
+
+            self.execute(
+                "UPDATE Users SET free_presentations = free_presentations - 1 WHERE telegram_id = ?",
+                parameters=(telegram_id,),
+                commit=True
+            )
+
+            new_free = self.get_free_presentations(telegram_id)
+            print(f"✅ Bepul prezentatsiya ishlatildi: User {telegram_id}, Qoldi: {new_free}")
+
+            return True
+
+        except Exception as e:
+            print(f"❌ use_free_presentation xato: {e}")
+            return False
+
+    def set_free_presentations(self, telegram_id: int, count: int) -> bool:
+        """
+        Bepul prezentatsiya sonini o'rnatish (Admin uchun)
+
+        Args:
+            telegram_id: Foydalanuvchi ID
+            count: Yangi son
+
+        Returns:
+            bool: Muvaffaqiyatli bo'lsa True
+        """
+        try:
+            self.execute(
+                "UPDATE Users SET free_presentations = ? WHERE telegram_id = ?",
+                parameters=(count, telegram_id),
+                commit=True
+            )
+
+            print(f"✅ Bepul prezentatsiya o'rnatildi: User {telegram_id}, Son: {count}")
+            return True
+
+        except Exception as e:
+            print(f"❌ set_free_presentations xato: {e}")
+            return False
+
+    def add_free_presentations(self, telegram_id: int, count: int = 1) -> bool:
+        """
+        Bepul prezentatsiya qo'shish (Admin/Bonus uchun)
+
+        Args:
+            telegram_id: Foydalanuvchi ID
+            count: Qo'shiladigan son (default: 1)
+
+        Returns:
+            bool: Muvaffaqiyatli bo'lsa True
+        """
+        try:
+            self.execute(
+                "UPDATE Users SET free_presentations = free_presentations + ? WHERE telegram_id = ?",
+                parameters=(count, telegram_id),
+                commit=True
+            )
+
+            new_count = self.get_free_presentations(telegram_id)
+            print(f"✅ Bepul prezentatsiya qo'shildi: User {telegram_id}, Yangi son: {new_count}")
+            return True
+
+        except Exception as e:
+            print(f"❌ add_free_presentations xato: {e}")
+            return False
