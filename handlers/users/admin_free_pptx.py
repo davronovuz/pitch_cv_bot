@@ -39,7 +39,7 @@ def free_presentations_menu_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
-@dp.message_handler(Text(equals="🎁 Bepul prezentatsiya"), state='*')
+@dp.message_handler(commands="bepul")
 async def admin_free_menu(message: types.Message, state: FSMContext):
     """Bepul prezentatsiya boshqaruv menyusi"""
     if not is_admin(message.from_user.id):
