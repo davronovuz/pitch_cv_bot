@@ -35,7 +35,8 @@ class GammaAPI:
             title: str = "Prezentatsiya",
             num_cards: int = 10,
             text_mode: str = "generate",
-            theme_id: str = None  # ✅ YANGI PARAMETR
+            theme_id: str = None,
+            _retry_without_theme: bool = False  # Internal flag
     ) -> Optional[Dict]:
         """
         Gamma prezentatsiya yaratish
@@ -45,7 +46,7 @@ class GammaAPI:
             title: Sarlavha (faqat metadata uchun)
             num_cards: Slaydlar soni (1-75)
             text_mode: "generate" | "condense" | "preserve"
-            theme_id: Theme ID (masalan: "Chisel", "Vortex", "Prism") - YANGI!
+            theme_id: Theme ID (masalan: "Chisel", "Vortex", "Prism")
 
         Returns:
             {'generationId': '...', 'status': 'processing'}
@@ -63,23 +64,24 @@ class GammaAPI:
             "format": "presentation",
             "numCards": num_cards,
             "cardSplit": "auto",
-            "exportAs": "pptx",  # PPTX formatda yuklab olish uchun
+            "exportAs": "pptx",
             "textOptions": {
-                "language": "uz"  # ✅ O'ZBEK TILIDA YARATISH
+                "language": "uz"
             }
         }
 
-        # ✅ YANGI: Theme ID qo'shish (agar berilgan bo'lsa)
-        if theme_id:
+        # Theme ID qo'shish (agar berilgan bo'lsa)
+        if theme_id and not _retry_without_theme:
             payload["themeId"] = theme_id
-            logger.info(f"🎨 Theme tanlandi: {theme_id}")
+            logger.info(f"🎨 Theme qo'shildi: {theme_id}")
 
         try:
             connector = aiohttp.TCPConnector(ssl=self.ssl_context)
 
             async with aiohttp.ClientSession(timeout=self.timeout, connector=connector) as session:
                 logger.info(f"🎯 Gamma API: POST {self.base_url}/generations")
-                logger.info(f"📊 Cards: {num_cards}, Mode: {text_mode}, Export: pptx, Theme: {theme_id or 'default'}")
+                logger.info(
+                    f"📊 Cards: {num_cards}, Mode: {text_mode}, Theme: {theme_id if theme_id and not _retry_without_theme else 'default'}")
 
                 async with session.post(
                         f"{self.base_url}/generations",
@@ -89,10 +91,10 @@ class GammaAPI:
 
                     response_text = await response.text()
                     logger.info(f"📥 Response status: {response.status}")
-                    logger.info(f"📄 Response: {response_text[:200]}")
+                    logger.info(f"📄 Response: {response_text[:300]}")
 
                     if response.status in [200, 201]:
-                        result = await response.json() if response_text else {}
+                        result = json.loads(response_text) if response_text else {}
                         generation_id = result.get('generationId')
 
                         if generation_id:
@@ -105,7 +107,20 @@ class GammaAPI:
                             logger.error(f"❌ generationId yo'q: {result}")
                             return None
                     else:
-                        logger.error(f"❌ Xato ({response.status}): {response_text}")
+                        logger.error(f"❌ Gamma API XATO ({response.status}): {response_text}")
+
+                        # ✅ FALLBACK: Agar theme bilan xato bo'lsa, theme'siz qayta urinish
+                        if theme_id and not _retry_without_theme and response.status in [400, 422, 500]:
+                            logger.warning(f"⚠️ Theme '{theme_id}' bilan xato! Theme'siz qayta urinib ko'ramiz...")
+                            return await self.create_presentation_from_text(
+                                text_content=text_content,
+                                title=title,
+                                num_cards=num_cards,
+                                text_mode=text_mode,
+                                theme_id=None,
+                                _retry_without_theme=True
+                            )
+
                         return None
 
         except asyncio.TimeoutError:
@@ -113,16 +128,26 @@ class GammaAPI:
             return None
         except Exception as e:
             logger.error(f"💥 Xato: {e}")
+
+            # ✅ FALLBACK: Exception bo'lsa ham theme'siz urinish
+            if theme_id and not _retry_without_theme:
+                logger.warning(f"⚠️ Exception! Theme'siz qayta urinib ko'ramiz...")
+                return await self.create_presentation_from_text(
+                    text_content=text_content,
+                    title=title,
+                    num_cards=num_cards,
+                    text_mode=text_mode,
+                    theme_id=None,
+                    _retry_without_theme=True
+                )
+
             return None
 
     async def get_themes(self, limit: int = 50) -> Optional[list]:
         """
-        ✅ YANGI: Mavjud theme'lar ro'yxatini olish
+        Mavjud theme'lar ro'yxatini olish
 
         Endpoint: GET /v1.0/themes
-
-        Returns:
-            [{'id': '...', 'name': '...', 'type': '...', 'colorKeywords': [...], 'toneKeywords': [...]}]
         """
         headers = {
             "X-API-KEY": self.api_key,
@@ -142,8 +167,13 @@ class GammaAPI:
 
                     if response.status == 200:
                         result = await response.json()
-                        themes = result.get('data', [])
+                        themes = result.get('data', result if isinstance(result, list) else [])
                         logger.info(f"✅ {len(themes)} ta theme topildi")
+
+                        # Theme ID'larni log qilish
+                        for theme in themes[:10]:
+                            logger.info(f"🎨 Theme: id='{theme.get('id')}', name='{theme.get('name')}'")
+
                         return themes
                     else:
                         response_text = await response.text()
@@ -159,18 +189,6 @@ class GammaAPI:
         Generation holatini tekshirish
 
         Endpoint: GET /v1.0/generations/{generationId}
-
-        Response:
-        {
-          "generationId": "xxx",
-          "status": "completed" | "processing",
-          "gammaUrl": "https://gamma.app/docs/xxx",
-          "pptxUrl": "https://...",  (agar exportAs="pptx" bo'lsa)
-          "credits": {...}
-        }
-
-        Returns:
-            {'status': 'processing'|'completed', 'gammaUrl': '...', 'pptxUrl': '...'}
         """
         headers = {
             "X-API-KEY": self.api_key,
@@ -181,7 +199,6 @@ class GammaAPI:
             connector = aiohttp.TCPConnector(ssl=self.ssl_context)
 
             async with aiohttp.ClientSession(timeout=self.timeout, connector=connector) as session:
-                # TO'G'RI ENDPOINT (without /files)
                 async with session.get(
                         f"{self.base_url}/generations/{generation_id}",
                         headers=headers
@@ -190,33 +207,25 @@ class GammaAPI:
                     response_text = await response.text()
 
                     if response.status == 200:
-                        result = await response.json()
+                        result = json.loads(response_text)
 
-                        # TO'LIQ RESPONSE LOG
-                        logger.info(f"📋 TO'LIQ RESPONSE:")
-                        logger.info(f"{json.dumps(result, indent=2, ensure_ascii=False)}")
+                        logger.info(f"📋 Status response: {json.dumps(result, indent=2, ensure_ascii=False)[:500]}")
 
                         status = result.get('status', 'unknown')
                         gamma_url = result.get('gammaUrl', '')
                         pptx_url = result.get('pptxUrl', '')
                         pdf_url = result.get('pdfUrl', '')
-
-                        # Boshqa mumkin bo'lgan field'lar
                         export_url = result.get('exportUrl', '')
                         files = result.get('files', [])
                         exports = result.get('exports', {})
 
                         logger.info(f"📊 Status: {status}")
-                        logger.info(f"🔗 Gamma URL: {gamma_url[:50] if gamma_url else 'yoq'}")
-                        logger.info(f"📄 PPTX URL: {pptx_url[:50] if pptx_url else 'yoq'}")
-                        logger.info(f"📥 Export URL: {export_url[:50] if export_url else 'yoq'}")
-                        logger.info(f"📂 Files: {files}")
-                        logger.info(f"📤 Exports: {exports}")
+                        logger.info(f"📄 PPTX URL: {pptx_url[:50] if pptx_url else 'yo`q'}")
 
                         return {
                             'status': status,
                             'gammaUrl': gamma_url,
-                            'pptxUrl': pptx_url or export_url,  # Try exportUrl if pptxUrl empty
+                            'pptxUrl': pptx_url or export_url,
                             'pdfUrl': pdf_url,
                             'files': files,
                             'exports': exports,
@@ -240,18 +249,12 @@ class GammaAPI:
             return None
 
     async def download_file(self, file_url: str, output_path: str) -> bool:
-        """
-        Faylni URL dan yuklab olish
-
-        Args:
-            file_url: To'liq URL
-            output_path: Saqlash yo'li
-        """
+        """Faylni URL dan yuklab olish"""
         try:
             connector = aiohttp.TCPConnector(ssl=self.ssl_context)
 
             async with aiohttp.ClientSession(timeout=self.timeout, connector=connector) as session:
-                logger.info(f"📥 Download: {file_url}")
+                logger.info(f"📥 Download: {file_url[:80]}...")
 
                 async with session.get(file_url) as response:
                     if response.status == 200:
@@ -261,28 +264,18 @@ class GammaAPI:
                         logger.info(f"✅ Saqlandi: {output_path}")
                         return True
                     else:
-                        logger.error(f"❌ Xato: {response.status}")
+                        logger.error(f"❌ Download xato: {response.status}")
                         return False
 
         except Exception as e:
-            logger.error(f"💥 Xato: {e}")
+            logger.error(f"💥 Download xato: {e}")
             return False
 
     async def download_pptx(self, generation_id: str, output_path: str) -> bool:
-        """
-        PPTX faylni yuklab olish
-
-        1. Status tekshirish
-        2. pptxUrl olish
-        3. Yuklab olish
-
-        Agar pptxUrl yo'q bo'lsa:
-        - gammaUrl'dan export qilishga harakat qiladi
-        """
+        """PPTX faylni yuklab olish"""
         try:
             logger.info(f"📥 PPTX yuklab olish: {generation_id}")
 
-            # Status tekshirish
             status_info = await self.check_status(generation_id)
 
             if not status_info:
@@ -295,43 +288,23 @@ class GammaAPI:
                 logger.error(f"❌ Hali tayyor emas (status: {status})")
                 return False
 
-            # PPTX URL olish
             pptx_url = status_info.get('pptxUrl', '')
 
             if pptx_url:
-                # Variant 1: pptxUrl mavjud
-                logger.info(f"📥 PPTX URL topildi: {pptx_url[:80]}...")
+                logger.info(f"📥 PPTX URL topildi")
                 return await self.download_file(pptx_url, output_path)
 
-            # Variant 2: pptxUrl yo'q, gamma URL'dan export qilish
             gamma_url = status_info.get('gammaUrl', '')
 
             if not gamma_url:
                 logger.error("❌ Na pptxUrl, na gammaUrl topilmadi")
-                logger.info(f"📋 To'liq response: {status_info}")
                 return False
 
             logger.warning("⚠️ pptxUrl yo'q, gamma URL'dan export qilishga urinamiz")
-            logger.info(f"🔗 Gamma URL: {gamma_url}")
-
-            # Gamma'dan PPTX export qilish (API endpoint bo'lishi kerak)
-            # Masalan: gamma.app/docs/{id}/export/pptx
             doc_id = gamma_url.split('/')[-1]
             export_url = f"https://gamma.app/docs/{doc_id}/export/pptx"
 
-            logger.info(f"🔄 Export URL: {export_url}")
-
-            # Bu endpoint mavjud bo'lsa ishlaydi
-            success = await self.download_file(export_url, output_path)
-
-            if not success:
-                logger.error("❌ Export URL ham ishlamadi")
-                logger.error("💡 Mumkin bo'lgan sabab: exportAs='pptx' parametri ishlamagan")
-                logger.error("💡 Yechim 1: Gamma account'da PPTX export mavjudmi?")
-                logger.error("💡 Yechim 2: API key to'g'rimi?")
-                logger.error("💡 Yechim 3: Credits yetarlimi?")
-
-            return success
+            return await self.download_file(export_url, output_path)
 
         except Exception as e:
             logger.error(f"💥 PPTX xato: {e}")
@@ -344,20 +317,10 @@ class GammaAPI:
             check_interval: int = 10,
             wait_for_pptx: bool = True
     ) -> bool:
-        """
-        Generation tayyor bo'lishini kutish
-
-        Args:
-            generation_id: Generation ID
-            timeout_seconds: Maksimal vaqt
-            check_interval: Tekshirish intervali
-            wait_for_pptx: PPTX URL tayyor bo'lishini ham kutish
-        """
+        """Generation tayyor bo'lishini kutish"""
         elapsed = 0
 
         logger.info(f"⏳ Kutish: max {timeout_seconds}s, interval {check_interval}s")
-        if wait_for_pptx:
-            logger.info("📄 PPTX URL tayyor bo'lishini ham kutamiz...")
 
         while elapsed < timeout_seconds:
             status_info = await self.check_status(generation_id)
@@ -371,10 +334,9 @@ class GammaAPI:
             status = status_info.get('status', '')
 
             if status == 'failed' or status == 'error':
-                logger.error("❌ Failed!")
+                logger.error("❌ Generation failed!")
                 return False
 
-            # Status completed va PPTX URL bor
             if status == 'completed':
                 if wait_for_pptx:
                     pptx_url = status_info.get('pptxUrl', '')
@@ -382,36 +344,20 @@ class GammaAPI:
                         logger.info("✅ Tayyor! PPTX URL ham bor!")
                         return True
                     else:
-                        logger.info("⏳ Status completed, lekin PPTX URL hali yo'q, kutamiz...")
+                        logger.info("⏳ Completed, lekin PPTX URL hali yo'q...")
                 else:
                     logger.info("✅ Tayyor!")
                     return True
 
-            # Kutish
             logger.info(f"⏳ {elapsed}s / {timeout_seconds}s (status: {status})")
             await asyncio.sleep(check_interval)
             elapsed += check_interval
 
         logger.error(f"⏱️ Timeout: {timeout_seconds}s")
-
-        # Timeout bo'lsa ham, oxirgi statusni tekshiramiz
-        status_info = await self.check_status(generation_id)
-        if status_info and status_info.get('status') == 'completed':
-            logger.warning("⚠️ Status completed, lekin timeout bo'ldi")
-            if not wait_for_pptx:
-                return True
-            if status_info.get('pptxUrl'):
-                logger.info("✅ PPTX URL topildi!")
-                return True
-
         return False
 
     def format_content_for_gamma(self, content: Dict, content_type: str) -> str:
-        """
-        Content'ni Gamma uchun formatlash
-
-        Gamma oddiy matn qabul qiladi va o'zi formatni yaratadi.
-        """
+        """Content'ni Gamma uchun formatlash"""
         if content_type == 'pitch_deck':
             return self._format_pitch_deck(content)
         else:
@@ -419,7 +365,6 @@ class GammaAPI:
 
     def _format_pitch_deck(self, content: Dict) -> str:
         """Pitch deck - strukturali matn"""
-
         project_name = content.get('project_name', 'Startup')
         tagline = content.get('tagline', '')
         author = content.get('author', '')
@@ -476,7 +421,6 @@ TAKLIF:
 
     def _format_presentation(self, content: Dict) -> str:
         """Oddiy prezentatsiya"""
-
         title = content.get('title', 'Prezentatsiya')
         subtitle = content.get('subtitle', '')
         slides = content.get('slides', [])
