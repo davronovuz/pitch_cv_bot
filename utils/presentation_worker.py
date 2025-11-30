@@ -82,12 +82,35 @@ class PresentationWorker:
             # Status'ni 'processing' ga o'zgartirish
             self.user_db.update_task_status(task_uuid, 'processing', progress=5)
 
+            # ✅ YANGI: Theme ID olish
+            theme_id = None
+            theme_name = "Standart"
+            try:
+                answers_json = task_data.get('answers', '{}')
+                answers_data = json.loads(answers_json)
+                theme_id = answers_data.get('theme_id')
+                if theme_id:
+                    logger.info(f"🎨 Theme tanlangan: {theme_id}")
+                    # Theme nomini olish (ixtiyoriy)
+                    try:
+                        from data.themes_data import get_theme_by_id
+                        theme_info = get_theme_by_id(theme_id)
+                        if theme_info:
+                            theme_name = theme_info.get('name', theme_id)
+                    except:
+                        theme_name = theme_id
+            except Exception as e:
+                logger.warning(f"Theme ID olishda xato: {e}")
+
             # User'ga BITTA xabar - keyinchalik update qilamiz
             telegram_id = self._get_telegram_id(user_id)
             if telegram_id:
+                # ✅ Theme ma'lumotini qo'shish
+                theme_text = f"\n🎨 <b>Theme:</b> {theme_name}" if theme_id else ""
+
                 msg = await self.bot.send_message(
                     telegram_id,
-                    f"🎨 <b>Prezentatsiya yaratilmoqda...</b>\n\n"
+                    f"🎨 <b>Prezentatsiya yaratilmoqda...</b>{theme_text}\n\n"
                     f"⏳ <b>Jarayon:</b>\n"
                     f"1️⃣ ⚙️ Kontent tayyorlanmoqda...\n"
                     f"2️⃣ ⏸ Dizayn kutilmoqda\n"
@@ -110,8 +133,9 @@ class PresentationWorker:
             # UPDATE qilamiz
             if telegram_id and progress_message_id:
                 try:
+                    theme_text = f"\n🎨 <b>Theme:</b> {theme_name}" if theme_id else ""
                     await self.bot.edit_message_text(
-                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>\n\n"
+                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>{theme_text}\n\n"
                         f"⏳ <b>Jarayon:</b>\n"
                         f"1️⃣ ✅ Kontent tayyor\n"
                         f"2️⃣ ⚙️ Professional dizayn qilinmoqda...\n"
@@ -138,13 +162,16 @@ class PresentationWorker:
             )
 
             logger.info(f"📝 Formatted text uzunligi: {len(formatted_text)} belgida")
+            if theme_id:
+                logger.info(f"🎨 Theme ID: {theme_id}")
 
-            # Professional AI'ga yuborish
+            # ✅ YANGI: Professional AI'ga yuborish (theme_id bilan)
             ai_result = await self.gamma_api.create_presentation_from_text(
                 text_content=formatted_text,
                 title=content.get('project_name') or content.get('title', 'Prezentatsiya'),
                 num_cards=slide_count,
-                text_mode="generate"
+                text_mode="generate",
+                theme_id=theme_id  # ✅ YANGI PARAMETR
             )
 
             if not ai_result:
@@ -162,8 +189,9 @@ class PresentationWorker:
             # UPDATE
             if telegram_id and progress_message_id:
                 try:
+                    theme_text = f"\n🎨 <b>Theme:</b> {theme_name}" if theme_id else ""
                     await self.bot.edit_message_text(
-                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>\n\n"
+                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>{theme_text}\n\n"
                         f"⏳ <b>Jarayon:</b>\n"
                         f"1️⃣ ✅ Kontent tayyor\n"
                         f"2️⃣ ✅ Dizayn boshlandi\n"
@@ -195,8 +223,9 @@ class PresentationWorker:
             # UPDATE
             if telegram_id and progress_message_id:
                 try:
+                    theme_text = f"\n🎨 <b>Theme:</b> {theme_name}" if theme_id else ""
                     await self.bot.edit_message_text(
-                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>\n\n"
+                        f"🎨 <b>Prezentatsiya yaratilmoqda...</b>{theme_text}\n\n"
                         f"⏳ <b>Jarayon:</b>\n"
                         f"1️⃣ ✅ Kontent tayyor\n"
                         f"2️⃣ ✅ Dizayn tayyor\n"
@@ -233,8 +262,9 @@ class PresentationWorker:
             # UPDATE - OXIRGI
             if telegram_id and progress_message_id:
                 try:
+                    theme_text = f"\n🎨 <b>Theme:</b> {theme_name}" if theme_id else ""
                     await self.bot.edit_message_text(
-                        f"🎉 <b>Prezentatsiya tayyor!</b>\n\n"
+                        f"🎉 <b>Prezentatsiya tayyor!</b>{theme_text}\n\n"
                         f"⏳ <b>Jarayon:</b>\n"
                         f"1️⃣ ✅ Kontent tayyor\n"
                         f"2️⃣ ✅ Dizayn tayyor\n"
@@ -255,11 +285,15 @@ class PresentationWorker:
                 try:
                     with open(output_path, 'rb') as f:
                         type_name = "Pitch Deck" if task_type == 'pitch_deck' else "Prezentatsiya"
+
+                        # ✅ Theme ma'lumotini caption'ga qo'shish
+                        theme_caption = f"\n🎨 Theme: {theme_name}" if theme_id else ""
+
                         caption = f"""
 🎉 <b>Sizning {type_name} tayyor!</b>
 
 ✨ Professional AI content
-🎨 Zamonaviy dizayn
+🎨 Zamonaviy dizayn{theme_caption}
 📊 To'liq formatlangan
 
 Muvaffaqiyatlar! 🚀
@@ -294,7 +328,7 @@ Muvaffaqiyatlar! 🚀
             except:
                 pass
 
-            logger.info(f"✅ Task tugallandi: {task_uuid}")
+            logger.info(f"✅ Task tugallandi: {task_uuid} | Theme: {theme_id or 'default'}")
 
         except Exception as e:
             logger.error(f"❌ Task xato: {task_uuid} - {e}")

@@ -15,7 +15,8 @@ class GammaAPI:
 
     Endpoints:
     - POST /generations - yangi gamma yaratish
-    - GET /generations/{generationId} - status va fayllar (TUZATILDI!)
+    - GET /generations/{generationId} - status va fayllar
+    - GET /themes - mavjud theme'lar ro'yxati
     """
 
     def __init__(self, api_key: str):
@@ -33,7 +34,8 @@ class GammaAPI:
             text_content: str,
             title: str = "Prezentatsiya",
             num_cards: int = 10,
-            text_mode: str = "generate"
+            text_mode: str = "generate",
+            theme_id: str = None  # ✅ YANGI PARAMETR
     ) -> Optional[Dict]:
         """
         Gamma prezentatsiya yaratish
@@ -43,6 +45,7 @@ class GammaAPI:
             title: Sarlavha (faqat metadata uchun)
             num_cards: Slaydlar soni (1-75)
             text_mode: "generate" | "condense" | "preserve"
+            theme_id: Theme ID (masalan: "Chisel", "Vortex", "Prism") - YANGI!
 
         Returns:
             {'generationId': '...', 'status': 'processing'}
@@ -66,12 +69,17 @@ class GammaAPI:
             }
         }
 
+        # ✅ YANGI: Theme ID qo'shish (agar berilgan bo'lsa)
+        if theme_id:
+            payload["themeId"] = theme_id
+            logger.info(f"🎨 Theme tanlandi: {theme_id}")
+
         try:
             connector = aiohttp.TCPConnector(ssl=self.ssl_context)
 
             async with aiohttp.ClientSession(timeout=self.timeout, connector=connector) as session:
                 logger.info(f"🎯 Gamma API: POST {self.base_url}/generations")
-                logger.info(f"📊 Cards: {num_cards}, Mode: {text_mode}, Export: pptx")
+                logger.info(f"📊 Cards: {num_cards}, Mode: {text_mode}, Export: pptx, Theme: {theme_id or 'default'}")
 
                 async with session.post(
                         f"{self.base_url}/generations",
@@ -105,6 +113,45 @@ class GammaAPI:
             return None
         except Exception as e:
             logger.error(f"💥 Xato: {e}")
+            return None
+
+    async def get_themes(self, limit: int = 50) -> Optional[list]:
+        """
+        ✅ YANGI: Mavjud theme'lar ro'yxatini olish
+
+        Endpoint: GET /v1.0/themes
+
+        Returns:
+            [{'id': '...', 'name': '...', 'type': '...', 'colorKeywords': [...], 'toneKeywords': [...]}]
+        """
+        headers = {
+            "X-API-KEY": self.api_key,
+            "accept": "application/json"
+        }
+
+        try:
+            connector = aiohttp.TCPConnector(ssl=self.ssl_context)
+
+            async with aiohttp.ClientSession(timeout=self.timeout, connector=connector) as session:
+                logger.info(f"🎨 Gamma API: GET {self.base_url}/themes")
+
+                async with session.get(
+                        f"{self.base_url}/themes?limit={limit}",
+                        headers=headers
+                ) as response:
+
+                    if response.status == 200:
+                        result = await response.json()
+                        themes = result.get('data', [])
+                        logger.info(f"✅ {len(themes)} ta theme topildi")
+                        return themes
+                    else:
+                        response_text = await response.text()
+                        logger.error(f"❌ Themes xato ({response.status}): {response_text}")
+                        return None
+
+        except Exception as e:
+            logger.error(f"💥 Themes xato: {e}")
             return None
 
     async def check_status(self, generation_id: str) -> Optional[Dict]:

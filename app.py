@@ -47,7 +47,7 @@ def run_migrations():
         {
             'name': 'free_presentations',
             'table': 'Users',
-            'sql': 'ALTER TABLE Users ADD COLUMN free_presentations INTEGER DEFAULT 2'
+            'sql': 'ALTER TABLE Users ADD COLUMN free_presentations INTEGER DEFAULT 1'
         },
         # Kelajakda boshqa migratsiyalar qo'shish mumkin
         # {
