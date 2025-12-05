@@ -127,7 +127,7 @@ class UserDatabase(Database):
 
     def add_user(self, telegram_id: int, username: str, created_at=None):
         if not self.user_exists(telegram_id):
-            sql = "INSERT INTO Users (telegram_id, username, created_at) VALUES (?, ?, ?)"
+            sql = "INSERT INTO Users (telegram_id, username,free_presentations, created_at) VALUES (?, ?, 0, ?)"
             if created_at is None:
                 created_at = datetime.now().isoformat()
             self.execute(sql, parameters=(telegram_id, username, created_at), commit=True)
