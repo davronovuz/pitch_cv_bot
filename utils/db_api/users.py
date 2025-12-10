@@ -13,7 +13,7 @@ class UserDatabase(Database):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             telegram_id BIGINT NOT NULL UNIQUE,
             username VARCHAR(255) NULL,
-            ALTER TABLE Users ADD COLUMN free_presentations INTEGER DEFAULT 1;
+            ALTER TABLE Users ADD COLUMN free_presentations INTEGER DEFAULT 0;
             balance DECIMAL(10, 2) DEFAULT 0.00,
             total_spent DECIMAL(10, 2) DEFAULT 0.00,
             total_deposited DECIMAL(10, 2) DEFAULT 0.00,
@@ -60,6 +60,8 @@ class UserDatabase(Database):
         self.execute(sql, commit=True)
         self.execute("CREATE INDEX IF NOT EXISTS idx_transactions_user ON Transactions(user_id);", commit=True)
         self.execute("CREATE INDEX IF NOT EXISTS idx_transactions_status ON Transactions(status);", commit=True)
+
+
 
     def create_table_pricing(self):
         """Narxlar jadvali"""
@@ -119,6 +121,43 @@ class UserDatabase(Database):
         self.execute("CREATE INDEX IF NOT EXISTS idx_tasks_uuid ON PresentationTasks(task_uuid);", commit=True)
 
     # ==================== USER METHODLAR ====================
+
+    # users_db.py ga qo'shish
+
+    def create_business_plans_table(self):
+        """Biznes planlar jadvali"""
+        sql = """
+        CREATE TABLE IF NOT EXISTS BusinessPlans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            price DECIMAL(10, 2) NOT NULL,
+            file_id TEXT NOT NULL,  -- Telegram file_id
+            preview_image_id TEXT,  -- Preview rasm
+            category TEXT,
+            sold_count INTEGER DEFAULT 0,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        self.execute(sql, commit=True)
+
+        # Sotib olish tarixi
+        sql_purchases = """
+        CREATE TABLE IF NOT EXISTS PlanPurchases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            plan_id INTEGER NOT NULL,
+            price DECIMAL(10, 2) NOT NULL,
+            purchased_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES Users(id),
+            FOREIGN KEY (plan_id) REFERENCES BusinessPlans(id)
+        );
+        """
+        self.execute(sql_purchases, commit=True)
+
+
+
 
     def user_exists(self, telegram_id: int) -> bool:
         sql = "SELECT 1 FROM Users WHERE telegram_id = ?"

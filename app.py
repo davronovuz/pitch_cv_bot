@@ -47,7 +47,7 @@ def run_migrations():
         {
             'name': 'free_presentations',
             'table': 'Users',
-            'sql': 'ALTER TABLE Users ADD COLUMN free_presentations INTEGER DEFAULT 1'
+            'sql': 'ALTER TABLE Users ADD COLUMN free_presentations INTEGER DEFAULT 0'
         },
         # Kelajakda boshqa migratsiyalar qo'shish mumkin
         # {
@@ -89,6 +89,7 @@ async def on_startup(dispatcher):
         user_db.create_table_transactions()
         user_db.create_table_pricing()
         user_db.create_table_presentation_tasks()
+        user_db.create_business_plans_table()
         logger.info("✅ Database jadvallari tayyor")
     except Exception as e:
         logger.error(f"❌ Database xato: {e}")
