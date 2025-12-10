@@ -245,7 +245,7 @@ Pastdagi tugmalardan birini tanlang! 👇
 
 
 # ==================== PITCH DECK ====================
-@dp.message_handler(Text(equals="🎯 Pitch Deck yaratish"), state='*')
+@dp.message_handler(Text(equals="🎯 Pitch Deck"), state='*')
 async def pitch_deck_start(message: types.Message, state: FSMContext):
     telegram_id = message.from_user.id
 
@@ -505,7 +505,7 @@ Qoladi: {(balance - price):,.0f} so'm
 
 
 # ==================== PREZENTATSIYA ====================
-@dp.message_handler(Text(equals="📊 Prezentatsiya yaratish"), state='*')
+@dp.message_handler(Text(equals="📊 Prezentatsiya"), state='*')
 async def presentation_start(message: types.Message, state: FSMContext):
     telegram_id = message.from_user.id
 
@@ -976,7 +976,7 @@ async def balance_info(message: types.Message, state: FSMContext):
         await message.answer("❌ Ma'lumotlarni olishda xatolik yuz berdi.")
 
 
-@dp.message_handler(Text(equals="💳 Balans to'ldirish"), state='*')
+@dp.message_handler(Text(equals="💳 To'ldirish"), state='*')
 async def balance_topup_start(message: types.Message, state: FSMContext):
     text = """
 💳 <b>BALANS TO'LDIRISH</b>
