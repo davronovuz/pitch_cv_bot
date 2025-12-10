@@ -1,12 +1,12 @@
 # handlers/users/course_work_handler.py
 # MUSTAQIL ISH / REFERAT / KURS ISHI YARATISH
-# ✅ PDF va DOCX formatlarida
+# ✅ O'tkazib yuborish TUGMASI qo'shildi
 
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 import logging
 import json
 import uuid
@@ -28,15 +28,15 @@ logger = logging.getLogger(__name__)
 
 # ==================== FSM STATES ====================
 class CourseWorkStates(StatesGroup):
-    waiting_for_type = State()          # Ish turi (referat, kurs ishi, ...)
-    waiting_for_topic = State()         # Mavzu
-    waiting_for_subject = State()       # Fan nomi
-    waiting_for_details = State()       # Qo'shimcha ma'lumotlar
-    waiting_for_page_count = State()    # Sahifalar soni
-    waiting_for_custom_pages = State()  # Maxsus sahifa soni
-    waiting_for_format = State()        # Format (PDF/DOCX)
-    waiting_for_language = State()      # Til
-    confirming_creation = State()       # Tasdiqlash
+    waiting_for_type = State()
+    waiting_for_topic = State()
+    waiting_for_subject = State()
+    waiting_for_details = State()
+    waiting_for_page_count = State()
+    waiting_for_custom_pages = State()
+    waiting_for_format = State()
+    waiting_for_language = State()
+    confirming_creation = State()
 
 
 # ==================== ISH TURLARI ====================
@@ -55,6 +55,19 @@ LANGUAGES = {
 }
 
 
+# ==================== KEYBOARD - O'tkazib yuborish tugmasi ====================
+def skip_or_cancel_keyboard():
+    """O'tkazib yuborish va Bekor qilish tugmalari"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton("⏭ O'tkazib yuborish")],
+            [KeyboardButton("❌ Bekor qilish")]
+        ],
+        resize_keyboard=True
+    )
+    return keyboard
+
+
 # ==================== START HANDLER ====================
 @dp.message_handler(Text(equals="📝 Mustaqil ish"), state='*')
 async def course_work_start(message: types.Message, state: FSMContext):
@@ -62,14 +75,12 @@ async def course_work_start(message: types.Message, state: FSMContext):
     telegram_id = message.from_user.id
 
     try:
-        # Bepul prezentatsiya tekshirish
         free_left = user_db.get_free_presentations(telegram_id)
         balance = user_db.get_user_balance(telegram_id)
 
-        # Narxni olish
         price_per_page = user_db.get_price('page_basic')
         if not price_per_page:
-            price_per_page = 500.0  # Default narx
+            price_per_page = 1500.0
 
         info_text = f"""
 📝 <b>MUSTAQIL ISH / REFERAT YARATISH</b>
@@ -151,6 +162,13 @@ async def work_type_selected(callback: types.CallbackQuery, state: FSMContext):
 @dp.message_handler(state=CourseWorkStates.waiting_for_topic)
 async def topic_received(message: types.Message, state: FSMContext):
     """Mavzu qabul qilindi"""
+
+    # Bekor qilish tekshirish
+    if message.text == "❌ Bekor qilish":
+        await state.finish()
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        return
+
     topic = message.text.strip()
 
     if len(topic) < 5:
@@ -177,6 +195,13 @@ async def topic_received(message: types.Message, state: FSMContext):
 @dp.message_handler(state=CourseWorkStates.waiting_for_subject)
 async def subject_received(message: types.Message, state: FSMContext):
     """Fan nomi qabul qilindi"""
+
+    # Bekor qilish tekshirish
+    if message.text == "❌ Bekor qilish":
+        await state.finish()
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        return
+
     subject = message.text.strip()
 
     if len(subject) < 2:
@@ -185,13 +210,15 @@ async def subject_received(message: types.Message, state: FSMContext):
 
     await state.update_data(subject=subject)
 
+    # ✅ O'tkazib yuborish TUGMASI bilan
     await message.answer(
         f"✅ Fan: <b>{subject}</b>\n\n"
         f"📝 <b>Qo'shimcha ma'lumotlar</b> kiriting:\n\n"
         f"• Asosiy bo'limlar\n"
         f"• Maxsus talablar\n"
         f"• Manbalar (ixtiyoriy)\n\n"
-        f"<i>Yoki \"o'tkazib yuborish\" deb yozing</i>",
+        f"<i>Yoki \"⏭ O'tkazib yuborish\" tugmasini bosing</i>",
+        reply_markup=skip_or_cancel_keyboard(),
         parse_mode='HTML'
     )
 
@@ -202,9 +229,17 @@ async def subject_received(message: types.Message, state: FSMContext):
 @dp.message_handler(state=CourseWorkStates.waiting_for_details)
 async def details_received(message: types.Message, state: FSMContext):
     """Qo'shimcha ma'lumotlar"""
+
+    # Bekor qilish tekshirish
+    if message.text == "❌ Bekor qilish":
+        await state.finish()
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        return
+
     details = message.text.strip()
 
-    if details.lower() in ['o\'tkazib yuborish', 'otkazib yuborish', 'skip', '-']:
+    # ✅ O'tkazib yuborish tugmasi bosilganda
+    if details in ["⏭ O'tkazib yuborish", "o'tkazib yuborish", "otkazib yuborish", "skip", "-"]:
         details = ""
 
     await state.update_data(details=details)
@@ -216,7 +251,6 @@ async def details_received(message: types.Message, state: FSMContext):
     # Dinamik keyboard yaratish
     keyboard = InlineKeyboardMarkup(row_width=4)
 
-    # Min va max orasidagi qiymatlar
     step = max((max_pages - min_pages) // 4, 1)
     values = [min_pages]
     current = min_pages + step
@@ -291,6 +325,13 @@ async def page_count_selected(callback: types.CallbackQuery, state: FSMContext):
 @dp.message_handler(state=CourseWorkStates.waiting_for_custom_pages)
 async def custom_pages_received(message: types.Message, state: FSMContext):
     """Maxsus sahifa soni"""
+
+    # Bekor qilish tekshirish
+    if message.text == "❌ Bekor qilish":
+        await state.finish()
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        return
+
     try:
         page_count = int(message.text.strip())
         user_data = await state.get_data()
@@ -361,7 +402,6 @@ async def language_selected(callback: types.CallbackQuery, state: FSMContext):
     lang_name = LANGUAGES.get(lang, "O'zbek tili")
     await state.update_data(language=lang, language_name=lang_name)
 
-    # Yakuniy tasdiqlash
     await show_course_work_summary(callback.message, state)
     await callback.answer()
 
@@ -439,7 +479,6 @@ async def course_work_confirm(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
 
     try:
-        # Ma'lumotlarni olish
         work_type = user_data.get('work_type')
         work_name = user_data.get('work_name')
         topic = user_data.get('topic')
@@ -452,12 +491,10 @@ async def course_work_confirm(message: types.Message, state: FSMContext):
         language_name = user_data.get('language_name')
         total_price = user_data.get('total_price', 0)
 
-        # Bepul tekshirish
         free_left = user_db.get_free_presentations(telegram_id)
         is_free = free_left > 0
 
         if is_free:
-            # BEPUL
             logger.info(f"🎁 BEPUL {work_name}: User {telegram_id}")
             user_db.use_free_presentation(telegram_id)
             new_free = user_db.get_free_presentations(telegram_id)
@@ -478,7 +515,6 @@ async def course_work_confirm(message: types.Message, state: FSMContext):
 ⏱️ Taxminan <b>5-10 daqiqa</b> vaqt ketadi.
 """
         else:
-            # PULLIK
             current_balance = user_db.get_user_balance(telegram_id)
 
             if current_balance < total_price:
@@ -524,10 +560,9 @@ async def course_work_confirm(message: types.Message, state: FSMContext):
 3️⃣ ⏸ {format_name} yaratish
 4️⃣ ⏸ Tayyor!
 
-⏱️ Taxminan <b>2-3 daqiqa</b> vaqt ketadi.
+⏱️ Taxminan <b>5-10 daqiqa</b> vaqt ketadi.
 """
 
-        # Task yaratish
         task_uuid = str(uuid.uuid4())
         content_data = {
             'work_type': work_type,
@@ -544,8 +579,8 @@ async def course_work_confirm(message: types.Message, state: FSMContext):
         task_id = user_db.create_presentation_task(
             telegram_id=telegram_id,
             task_uuid=task_uuid,
-            presentation_type='course_work',  # Yangi tur
-            slide_count=page_count,  # Sahifalar soni
+            presentation_type='course_work',
+            slide_count=page_count,
             answers=json.dumps(content_data, ensure_ascii=False),
             amount_charged=amount_charged
         )
@@ -572,5 +607,23 @@ async def course_work_confirm(message: types.Message, state: FSMContext):
 @dp.message_handler(Text(equals="❌ Yo'q"), state=CourseWorkStates.confirming_creation)
 async def course_work_cancel(message: types.Message, state: FSMContext):
     """Bekor qilish"""
+    await state.finish()
+    await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+
+
+# ==================== UNIVERSAL CANCEL ====================
+@dp.message_handler(Text(equals="❌ Bekor qilish"), state=[
+    CourseWorkStates.waiting_for_type,
+    CourseWorkStates.waiting_for_topic,
+    CourseWorkStates.waiting_for_subject,
+    CourseWorkStates.waiting_for_details,
+    CourseWorkStates.waiting_for_page_count,
+    CourseWorkStates.waiting_for_custom_pages,
+    CourseWorkStates.waiting_for_format,
+    CourseWorkStates.waiting_for_language,
+    CourseWorkStates.confirming_creation
+])
+async def universal_cancel(message: types.Message, state: FSMContext):
+    """Universal bekor qilish"""
     await state.finish()
     await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
