@@ -1,6 +1,71 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 
+# ==================== ADMIN MENYULARI ====================
+# admin_panel.py uchun kerak
+
+menu_admin = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text='📊 Statistika'),
+            KeyboardButton(text='📣 Reklama'),
+        ],
+        [
+            KeyboardButton(text='📢 Kanallar boshqaruvi'),
+            KeyboardButton(text='👥 Adminlar boshqaruvi'),
+        ],
+        [
+            KeyboardButton(text='💰 Narxlarni boshqarish'),
+            KeyboardButton(text='💳 Tranzaksiyalar'),
+        ],
+        [
+            KeyboardButton(text='👤 Foydalanuvchi malumotlari'),
+            KeyboardButton(text='💵 Balans qoshish'),
+        ],
+        [
+            KeyboardButton(text='📄 Yordam'),
+            KeyboardButton(text='🔙 Ortga qaytish'),
+        ],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True
+)
+
+
+menu_ichki_admin = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text='➕ Admin qo\'shish'),
+            KeyboardButton(text='❌ Adminni o\'chirish'),
+        ],
+        [
+            KeyboardButton(text='👥 Barcha adminlar'),
+            KeyboardButton(text='🔙 Ortga qaytish'),
+        ],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True
+)
+
+
+menu_ichki_kanal = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text='➕ Kanal qo\'shish'),
+            KeyboardButton(text='❌ Kanalni o\'chirish'),
+        ],
+        [
+            KeyboardButton(text='📋 Barcha kanallar'),
+            KeyboardButton(text='🔙 Ortga qaytish'),
+        ],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True
+)
+
+
+# ==================== USER MENYULARI ====================
+
 def main_menu_keyboard():
     """
     Asosiy menyu - YANGILANGAN
@@ -14,7 +79,7 @@ def main_menu_keyboard():
                 KeyboardButton("📊 Prezentatsiya"),
             ],
             [
-                KeyboardButton("📝 Mustaqil ish"),  # ✅ YANGI
+                KeyboardButton("📝 Mustaqil ish"),
             ],
             [
                 KeyboardButton("💰 Balansim"),
