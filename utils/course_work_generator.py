@@ -72,7 +72,7 @@ Siz professor darajasidagi akademik yozuvchisiz. Quyidagi parametrlar asosida pr
 
 ⚠️ MUHIM QOIDALAR:
 1. Har bir bo'lim {structure['paragraphs_per_section']} ta paragrafdan iborat bo'lsin
-2. Har bir paragraf 4-6 ta gapdan iborat bo'lsin
+2. Har bir paragraf 20-50 ta gapdan iborat bo'lsin
 3. Akademik uslubda yozing
 4. Ilmiy atamalarni to'g'ri ishlating
 5. Mantiqiy bog'lanish bo'lsin
@@ -88,7 +88,7 @@ JSON formatida qaytaring:
         "faculty": "Fakultet",
         "department": "Kafedra"
     }},
-    "abstract": "Qisqacha annotatsiya (150-200 so'z)",
+    "abstract": "Qisqacha annotatsiya (1500-2000 so'z)",
     "keywords": ["kalit", "so'zlar", "ro'yxati"],
     "table_of_contents": [
         {{"title": "KIRISH", "page": 3}},
@@ -126,7 +126,7 @@ JSON formatida qaytaring:
     "appendix": null
 }}
 
-Jami {page_count} sahifaga mos kontent yarating. Har bir sahifa taxminan 300-350 so'z.
+Jami {page_count} sahifaga mos kontent yarating. Har bir sahifa taxminan 1000-3500 so'z.
 """
 
         try:

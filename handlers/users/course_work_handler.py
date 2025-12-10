@@ -69,7 +69,7 @@ async def course_work_start(message: types.Message, state: FSMContext):
         # Narxni olish
         price_per_page = user_db.get_price('page_basic')
         if not price_per_page:
-            price_per_page = 1500.0  # Default narx
+            price_per_page = 500.0  # Default narx
 
         info_text = f"""
 📝 <b>MUSTAQIL ISH / REFERAT YARATISH</b>
