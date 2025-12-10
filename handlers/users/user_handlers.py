@@ -8,7 +8,7 @@ import json
 import uuid
 
 from loader import dp, bot, user_db
-from keyboards.default.user_keyboards import (
+from keyboards.default.default_keyboard import (
     main_menu_keyboard,
     cancel_keyboard,
     confirm_keyboard
