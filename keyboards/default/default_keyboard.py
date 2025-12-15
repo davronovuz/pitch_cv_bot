@@ -80,6 +80,7 @@ def main_menu_keyboard():
             ],
             [
                 KeyboardButton("📝 Mustaqil ish"),
+                KeyboardButton("📝 Mustaqil ish"),
             ],
             [
                 KeyboardButton("💰 Balansim"),
