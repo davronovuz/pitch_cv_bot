@@ -31,7 +31,7 @@ REPORT_PRICE = 5000  # Narxi (so'm)
 # ═══════════════════════════════════════════════════════════════
 # 1. TUGMA - HAFTALIK HISOBOT
 # ═══════════════════════════════════════════════════════════════
-@dp.message_handler(text="📋 Yetakchi  hisobot xaftalik")
+@dp.message_handler(text="📋 Xaftalik ish reja ")
 async def weekly_report_start(message: types.Message):
     """Haftalik hisobot tugmasi bosilganda"""
     telegram_id = message.from_user.id
