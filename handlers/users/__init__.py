@@ -1,4 +1,5 @@
 from . import mahalla
+from . import weekly_report_handler
 from . import admin_free_pptx
 from . import course_work_handler1
 from . import plan_admin
