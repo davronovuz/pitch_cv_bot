@@ -68,29 +68,11 @@ Mahalla yoshlar yetakchilari uchun professional haftalik ish rejasi yaratish.
 
 
 # ═══════════════════════════════════════════════════════════════
-# 2. WEB APP DATA HANDLER
+# 2. WEEKLY REPORT HANDLER (course_work_handler dan chaqiriladi)
 # ═══════════════════════════════════════════════════════════════
-@dp.message_handler(content_types=ContentType.WEB_APP_DATA)
-async def web_app_data_handler(message: types.Message):
-    """Web App dan kelgan ma'lumotni qayta ishlash"""
+async def handle_weekly_report_data(message: types.Message, data: dict):
+    """Weekly report Web App data ni qayta ishlash"""
     telegram_id = message.from_user.id
-
-    # 1. JSON ni o'qish
-    try:
-        raw_data = message.web_app_data.data
-        data = json.loads(raw_data)
-
-        # Faqat weekly_report turini qayta ishlash
-        if data.get('type') != 'weekly_report':
-            return
-
-    except Exception as e:
-        logger.error(f"Web App data xato: {e}")
-        await message.answer(
-            "❌ Ma'lumotni o'qishda xatolik yuz berdi.",
-            reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db)
-        )
-        return
 
     # 2. Balansni tekshirish
     balance = user_db.get_user_balance(telegram_id)

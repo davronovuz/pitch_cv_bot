@@ -50,9 +50,16 @@ async def web_app_data_handler(message: types.Message, state: FSMContext):
         )
         return
 
-    # Prezentatsiya yoki Mustaqil ish?
-    if data.get('type') == 'presentation':
+    # Turini aniqlash va yo'naltirish
+    data_type = data.get('type', '')
+
+    if data_type == 'presentation':
         await _handle_presentation_web_data(message, data)
+        return
+
+    if data_type == 'weekly_report':
+        from handlers.users.weekly_report_handler import handle_weekly_report_data
+        await handle_weekly_report_data(message, data)
         return
 
     topic = data.get('topic', 'Mavzusiz')
