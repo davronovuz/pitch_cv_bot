@@ -57,10 +57,6 @@ async def web_app_data_handler(message: types.Message, state: FSMContext):
         await _handle_presentation_web_data(message, data)
         return
 
-    if data_type == 'weekly_report':
-        from handlers.users.weekly_report_handler import handle_weekly_report_data
-        await handle_weekly_report_data(message, data)
-        return
 
     topic = data.get('topic', 'Mavzusiz')
     page_count = int(data.get('page_count', 12))
