@@ -1,4 +1,4 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
 
 # ==================== ADMIN MENYULARI ====================
@@ -66,12 +66,29 @@ menu_ichki_kanal = ReplyKeyboardMarkup(
 
 # ==================== USER MENYULARI ====================
 
-def main_menu_keyboard():
+WEB_APP_BASE_URL = "https://aislide-frontend.vercel.app/"
+
+
+def main_menu_keyboard(telegram_id=None, user_db=None):
     """
-    Asosiy menyu - YANGILANGAN
-    ✅ Mustaqil ish qo'shildi
-    ✅ UX yaxshilandi
+    Asosiy menyu - WebApp tugmalar bilan
+    ✅ Prezentatsiya va Mustaqil ish to'g'ridan-to'g'ri WebApp ochadi
+    ✅ Narxlar va balans URL orqali uzatiladi
     """
+    pres_url = WEB_APP_BASE_URL + "?type=presentation"
+    cw_url = WEB_APP_BASE_URL
+
+    if telegram_id and user_db:
+        try:
+            balance = user_db.get_user_balance(telegram_id)
+            free_left = user_db.get_free_presentations(telegram_id)
+            price_per_slide = user_db.get_price('slide_basic') or 500
+            price_per_page = user_db.get_price('page_basic') or 500
+            pres_url += f"&balance={balance}&free={free_left}&price={price_per_slide}"
+            cw_url += f"?balance={balance}&price={price_per_page}"
+        except Exception:
+            pass
+
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [
@@ -79,10 +96,12 @@ def main_menu_keyboard():
             ],
             [
                 KeyboardButton("🎯 Pitch Deck"),
-                KeyboardButton("📊 Prezentatsiya"),
             ],
             [
-                KeyboardButton("📝 Mustaqil ish"),
+                KeyboardButton("📊 Prezentatsiya", web_app=WebAppInfo(url=pres_url)),
+            ],
+            [
+                KeyboardButton("📝 Mustaqil ish", web_app=WebAppInfo(url=cw_url)),
             ],
             [
                 KeyboardButton("💰 Balansim"),

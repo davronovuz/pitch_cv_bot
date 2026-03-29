@@ -239,7 +239,7 @@ async def start_handler(message: types.Message, state: FSMContext):
 Pastdagi tugmalardan birini tanlang! 👇
 """
 
-        await message.answer(welcome_text, reply_markup=main_menu_keyboard(), parse_mode='HTML')
+        await message.answer(welcome_text, reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db), parse_mode='HTML')
 
     except Exception as e:
         logger.error(f"❌ Start handler xato: {e}")
@@ -367,7 +367,7 @@ Tayyor bo'lgach sizga <b>professional PPTX fayl</b> yuboriladi! 🎉
                         f"Sizda: {current_balance:,.0f} so'm\n\n"
                         f"Balansni to'ldiring: 💳 To'ldirish",
                         parse_mode='HTML',
-                        reply_markup=main_menu_keyboard()
+                        reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db)
                     )
                     await state.finish()
                     return
@@ -379,7 +379,7 @@ Tayyor bo'lgach sizga <b>professional PPTX fayl</b> yuboriladi! 🎉
                     await message.answer(
                         "❌ <b>Balansdan yechishda xatolik!</b>\n\nBalansni tekshiring: 💰 Balansim",
                         parse_mode='HTML',
-                        reply_markup=main_menu_keyboard()
+                        reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db)
                     )
                     await state.finish()
                     return
@@ -433,7 +433,7 @@ Tayyor bo'lgach sizga <b>professional PPTX fayl</b> yuboriladi! 🎉
                 await state.finish()
                 return
 
-            await message.answer(success_text, reply_markup=main_menu_keyboard(), parse_mode='HTML')
+            await message.answer(success_text, reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db), parse_mode='HTML')
             await state.finish()
 
             logger.info(f"✅ Pitch Deck task yaratildi: {task_uuid} | User: {telegram_id} | Free: {is_free}")
@@ -451,7 +451,7 @@ async def pitch_deck_answer(message: types.Message, state: FSMContext):
     # ✅ Bekor qilish tekshirish
     if message.text == "❌ Bekor qilish":
         await state.finish()
-        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
         return
 
     user_data = await state.get_data()
@@ -558,7 +558,7 @@ async def presentation_topic(message: types.Message, state: FSMContext):
     # ✅ Bekor qilish tekshirish
     if message.text == "❌ Bekor qilish":
         await state.finish()
-        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
         return
 
     topic = message.text.strip()
@@ -587,7 +587,7 @@ async def presentation_details(message: types.Message, state: FSMContext):
     # ✅ Bekor qilish tekshirish
     if message.text == "❌ Bekor qilish":
         await state.finish()
-        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
         return
 
     details = message.text.strip()
@@ -618,7 +618,7 @@ async def presentation_slide_count(message: types.Message, state: FSMContext):
     # ✅ Bekor qilish tekshirish
     if message.text == "❌ Bekor qilish":
         await state.finish()
-        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
         return
 
     try:
@@ -656,7 +656,7 @@ Yetishmayotgan: {(total_price - balance):,.0f} so'm
 
 Balansni to'ldiring: 💳 To'ldirish
 """
-            await message.answer(summary, parse_mode='HTML', reply_markup=main_menu_keyboard())
+            await message.answer(summary, parse_mode='HTML', reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
             await state.finish()
             return
 
@@ -848,7 +848,7 @@ Tayyor bo'lgach sizga <b>PPTX fayl</b> yuboriladi! 🎉
                     f"Kerakli: {total_price:,.0f} so'm\n"
                     f"Sizda: {current_balance:,.0f} so'm",
                     parse_mode='HTML',
-                    reply_markup=main_menu_keyboard()
+                    reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db)
                 )
                 await state.finish()
                 return
@@ -857,7 +857,7 @@ Tayyor bo'lgach sizga <b>PPTX fayl</b> yuboriladi! 🎉
 
             if not success:
                 await message.answer("❌ <b>Balansdan yechishda xatolik!</b>", parse_mode='HTML',
-                                     reply_markup=main_menu_keyboard())
+                                     reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
                 await state.finish()
                 return
 
@@ -916,7 +916,7 @@ Tayyor bo'lgach sizga <b>PPTX fayl</b> yuboriladi! 🎉
             await state.finish()
             return
 
-        await message.answer(success_text, reply_markup=main_menu_keyboard(), parse_mode='HTML')
+        await message.answer(success_text, reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db), parse_mode='HTML')
         await state.finish()
 
         logger.info(
@@ -994,7 +994,7 @@ async def balance_topup_amount(message: types.Message, state: FSMContext):
     # ✅ Bekor qilish tekshirish
     if message.text == "❌ Bekor qilish":
         await state.finish()
-        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
         return
 
     try:
@@ -1078,7 +1078,7 @@ async def balance_topup_receipt(message: types.Message, state: FSMContext):
 Tasdiqlangach balansingizga avtomatik qo'shiladi! 💳
 """
 
-        await message.answer(success_text, reply_markup=main_menu_keyboard(), parse_mode='HTML')
+        await message.answer(success_text, reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db), parse_mode='HTML')
 
         user_name = message.from_user.full_name
         await send_admin_notification(trans_id, telegram_id, amount, file_id, user_name)
@@ -1100,7 +1100,7 @@ async def balance_receipt_text_handler(message: types.Message, state: FSMContext
     # Bekor qilish tekshirish
     if message.text == "❌ Bekor qilish":
         await state.finish()
-        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+        await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
         return
 
     await message.answer("📸 Iltimos, chek <b>rasm</b> yoki <b>fayl</b> sifatida yuboring!", parse_mode='HTML')
@@ -1113,15 +1113,15 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 
     if current_state:
         await state.finish()
-        await message.answer("❌ Jarayon bekor qilindi", reply_markup=main_menu_keyboard())
+        await message.answer("❌ Jarayon bekor qilindi", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
     else:
-        await message.answer("Hozir hech narsa bajarilmayapti", reply_markup=main_menu_keyboard())
+        await message.answer("Hozir hech narsa bajarilmayapti", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
 
 
 @dp.message_handler(Text(equals="❌ Yo'q"), state='*')
 async def no_handler(message: types.Message, state: FSMContext):
     await state.finish()
-    await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard())
+    await message.answer("❌ Bekor qilindi", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
 
 
 # ==================== NARXLAR ====================

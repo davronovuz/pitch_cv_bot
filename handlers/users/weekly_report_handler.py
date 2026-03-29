@@ -88,7 +88,7 @@ async def web_app_data_handler(message: types.Message):
         logger.error(f"Web App data xato: {e}")
         await message.answer(
             "❌ Ma'lumotni o'qishda xatolik yuz berdi.",
-            reply_markup=main_menu_keyboard()
+            reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db)
         )
         return
 
@@ -103,7 +103,7 @@ async def web_app_data_handler(message: types.Message):
             f"❗ Yetishmayotgan: {(REPORT_PRICE - balance):,.0f} so'm\n\n"
             f"Balansni to'ldiring: 💳 To'ldirish",
             parse_mode='HTML',
-            reply_markup=main_menu_keyboard()
+            reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db)
         )
         return
 
@@ -159,7 +159,7 @@ async def web_app_data_handler(message: types.Message):
             await status_msg.edit_text(
                 "❌ AI generatsiya qila olmadi. Pul qaytarildi. Qaytadan urinib ko'ring."
             )
-            await message.answer("🏠 Bosh menyu:", reply_markup=main_menu_keyboard())
+            await message.answer("🏠 Bosh menyu:", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
             return
 
         # 7. Status yangilash
@@ -193,7 +193,7 @@ async def web_app_data_handler(message: types.Message):
             user_db.add_to_balance(telegram_id, REPORT_PRICE)
             await message.answer(
                 "❌ Fayl yaratishda xatolik bo'ldi. Pul qaytarildi.",
-                reply_markup=main_menu_keyboard()
+                reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db)
             )
             return
 
@@ -209,7 +209,7 @@ async def web_app_data_handler(message: types.Message):
                     f"💰 Yechildi: {REPORT_PRICE:,} so'm\n"
                     f"💳 Qoldi: {new_balance:,.0f} so'm",
             parse_mode='HTML',
-            reply_markup=main_menu_keyboard()
+            reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db)
         )
 
         # 10. Tozalash
@@ -243,4 +243,4 @@ async def web_app_data_handler(message: types.Message):
                 "❌ Tizimda kutilmagan xatolik yuz berdi. Pul qaytarildi."
             )
 
-        await message.answer("🏠 Bosh menyu:", reply_markup=main_menu_keyboard())
+        await message.answer("🏠 Bosh menyu:", reply_markup=main_menu_keyboard(telegram_id=message.from_user.id, user_db=user_db))
