@@ -92,13 +92,11 @@ def main_menu_keyboard(telegram_id=None, user_db=None):
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton("📊 Prezentatsiya", web_app=WebAppInfo(url=pres_url)),
-            ],
-            [
-                KeyboardButton("📝 Mustaqil ish", web_app=WebAppInfo(url=cw_url)),
-            ],
-            [
                 KeyboardButton("📋 Biznes Reja"),
+            ],
+            [
+                KeyboardButton("📊 Prezentatsiya", web_app=WebAppInfo(url=pres_url)),
+                KeyboardButton("📝 Mustaqil ish", web_app=WebAppInfo(url=cw_url)),
             ],
             [
                 KeyboardButton("💰 Balansim"),
