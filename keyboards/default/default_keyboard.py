@@ -98,6 +98,9 @@ def main_menu_keyboard(telegram_id=None, user_db=None):
                 KeyboardButton("📝 Mustaqil ish", web_app=WebAppInfo(url=cw_url)),
             ],
             [
+                KeyboardButton("📋 Biznes Reja"),
+            ],
+            [
                 KeyboardButton("💰 Balansim"),
                 KeyboardButton("💳 To'ldirish")
             ],

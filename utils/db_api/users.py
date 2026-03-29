@@ -86,6 +86,8 @@ class UserDatabase(Database):
             ('slide_pro', 2000.00, "so'm", 'Professional slayd', True),
             ('presentation_basic', 10000.00, "so'm", 'Oddiy prezentatsiya (10 slayd)', True),
             ('presentation_pro', 20000.00, "so'm", 'Professional prezentatsiya (10 slayd)', True),
+            ('page_basic', 500.00, "so'm", 'Mustaqil ish sahifasi', True),
+            ('biznes_plan_ai', 25000.00, "so'm", 'AI biznes reja generatsiya', True),
         ]
 
         for service, price, currency, desc, active in default_prices:
@@ -1123,3 +1125,144 @@ class UserDatabase(Database):
         except Exception as e:
             print(f"❌ add_free_presentations xato: {e}")
             return False
+
+    # ==================== BIZNES PLAN METHODLAR ====================
+
+    def add_business_plan(
+            self,
+            title: str,
+            description: str,
+            price: float,
+            file_id: str,
+            category: str,
+            preview_image_id: str = None
+    ) -> Optional[int]:
+        """Yangi tayyor biznes plan qo'shish"""
+        try:
+            sql = """
+            INSERT INTO BusinessPlans (title, description, price, file_id, preview_image_id, category, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+            """
+            self.execute(sql, parameters=(title, description, price, file_id, preview_image_id, category), commit=True)
+            result = self.execute("SELECT id FROM BusinessPlans ORDER BY id DESC LIMIT 1", fetchone=True)
+            return result[0] if result else None
+        except Exception as e:
+            print(f"❌ add_business_plan xato: {e}")
+            return None
+
+    def get_all_business_plans(self, active_only: bool = True) -> List[Dict]:
+        """Barcha biznes planlarni olish"""
+        try:
+            if active_only:
+                sql = "SELECT id, title, description, price, file_id, preview_image_id, category, sold_count, is_active FROM BusinessPlans WHERE is_active = 1 ORDER BY category, title"
+            else:
+                sql = "SELECT id, title, description, price, file_id, preview_image_id, category, sold_count, is_active FROM BusinessPlans ORDER BY category, title"
+            results = self.execute(sql, fetchall=True)
+            return [self._row_to_plan(r) for r in results]
+        except Exception as e:
+            print(f"❌ get_all_business_plans xato: {e}")
+            return []
+
+    def get_business_plans_by_category(self, category: str, active_only: bool = True) -> List[Dict]:
+        """Kategoriya bo'yicha biznes planlar"""
+        try:
+            if active_only:
+                sql = "SELECT id, title, description, price, file_id, preview_image_id, category, sold_count, is_active FROM BusinessPlans WHERE category = ? AND is_active = 1 ORDER BY title"
+            else:
+                sql = "SELECT id, title, description, price, file_id, preview_image_id, category, sold_count, is_active FROM BusinessPlans WHERE category = ? ORDER BY title"
+            results = self.execute(sql, parameters=(category,), fetchall=True)
+            return [self._row_to_plan(r) for r in results]
+        except Exception as e:
+            print(f"❌ get_business_plans_by_category xato: {e}")
+            return []
+
+    def get_business_plan_by_id(self, plan_id: int) -> Optional[Dict]:
+        """ID bo'yicha biznes plan olish"""
+        try:
+            sql = "SELECT id, title, description, price, file_id, preview_image_id, category, sold_count, is_active FROM BusinessPlans WHERE id = ?"
+            result = self.execute(sql, parameters=(plan_id,), fetchone=True)
+            return self._row_to_plan(result) if result else None
+        except Exception as e:
+            print(f"❌ get_business_plan_by_id xato: {e}")
+            return None
+
+    def _row_to_plan(self, row) -> Dict:
+        return {
+            'id': row[0],
+            'title': row[1],
+            'description': row[2],
+            'price': float(row[3]),
+            'file_id': row[4],
+            'preview_image_id': row[5],
+            'category': row[6],
+            'sold_count': row[7],
+            'is_active': bool(row[8]),
+        }
+
+    def update_business_plan_price(self, plan_id: int, price: float) -> bool:
+        """Biznes plan narxini yangilash"""
+        try:
+            self.execute("UPDATE BusinessPlans SET price = ? WHERE id = ?", parameters=(price, plan_id), commit=True)
+            return True
+        except Exception as e:
+            print(f"❌ update_business_plan_price xato: {e}")
+            return False
+
+    def toggle_business_plan(self, plan_id: int) -> bool:
+        """Biznes planni yoqish/o'chirish"""
+        try:
+            self.execute("UPDATE BusinessPlans SET is_active = NOT is_active WHERE id = ?", parameters=(plan_id,), commit=True)
+            return True
+        except Exception as e:
+            print(f"❌ toggle_business_plan xato: {e}")
+            return False
+
+    def delete_business_plan(self, plan_id: int) -> bool:
+        """Biznes planni o'chirish"""
+        try:
+            self.execute("DELETE FROM BusinessPlans WHERE id = ?", parameters=(plan_id,), commit=True)
+            return True
+        except Exception as e:
+            print(f"❌ delete_business_plan xato: {e}")
+            return False
+
+    def record_plan_purchase(self, telegram_id: int, plan_id: int, price: float) -> bool:
+        """Sotib olishni qayd qilish"""
+        try:
+            user_id = self.get_user_id(telegram_id)
+            if not user_id:
+                return False
+            self.execute(
+                "INSERT INTO PlanPurchases (user_id, plan_id, price) VALUES (?, ?, ?)",
+                parameters=(user_id, plan_id, price), commit=True
+            )
+            self.execute("UPDATE BusinessPlans SET sold_count = sold_count + 1 WHERE id = ?", parameters=(plan_id,), commit=True)
+            return True
+        except Exception as e:
+            print(f"❌ record_plan_purchase xato: {e}")
+            return False
+
+    def has_user_purchased_plan(self, telegram_id: int, plan_id: int) -> bool:
+        """User bu planni sotib olganmi?"""
+        try:
+            user_id = self.get_user_id(telegram_id)
+            if not user_id:
+                return False
+            result = self.execute(
+                "SELECT 1 FROM PlanPurchases WHERE user_id = ? AND plan_id = ?",
+                parameters=(user_id, plan_id), fetchone=True
+            )
+            return result is not None
+        except Exception as e:
+            return False
+
+    def get_all_categories(self) -> List[str]:
+        """Aktiv kategoriyalar ro'yxati"""
+        try:
+            results = self.execute(
+                "SELECT DISTINCT category FROM BusinessPlans WHERE is_active = 1 ORDER BY category",
+                fetchall=True
+            )
+            return [r[0] for r in results if r[0]]
+        except Exception as e:
+            return []
