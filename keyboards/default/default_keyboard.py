@@ -82,7 +82,6 @@ def main_menu_keyboard():
                 KeyboardButton("📊 Prezentatsiya"),
             ],
             [
-                KeyboardButton("🏘 Mahalla Tahlili"),
                 KeyboardButton("📝 Mustaqil ish"),
             ],
             [

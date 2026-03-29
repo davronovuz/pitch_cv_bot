@@ -22,11 +22,11 @@ class PresentationWorker:
     ✅ Mustaqil ish (DOCX/PDF) - YANGI
     """
 
-    def __init__(self, bot: Bot, user_db, content_generator, gamma_api):
+    def __init__(self, bot: Bot, user_db, content_generator, presenton_api):
         self.bot = bot
         self.user_db = user_db
         self.content_generator = content_generator
-        self.gamma_api = gamma_api
+        self.presenton_api = presenton_api
         self.is_running = False
         self.worker_task = None
 
@@ -34,6 +34,21 @@ class PresentationWorker:
         self.course_work_generator = None
         self.docx_generator = None
         self._init_course_work_tools()
+
+        # PPTX post-processor
+        self.pptx_post_processor = None
+        self._init_post_processor()
+
+    def _init_post_processor(self):
+        """PPTX post-processor ni ishga tushirish"""
+        try:
+            from utils.pptx_post_processor import post_process_pptx
+            self.pptx_post_processor = post_process_pptx
+            logger.info("✅ PPTX Post-Processor tayyor")
+        except ImportError as e:
+            logger.warning(f"⚠️ PPTX Post-Processor import xato: {e}")
+        except Exception as e:
+            logger.warning(f"⚠️ PPTX Post-Processor init xato: {e}")
 
     def _init_course_work_tools(self):
         """Course work toollarini ishga tushirish"""
@@ -408,11 +423,11 @@ Muvaffaqiyatlar! 🚀
                 except:
                     pass
 
-            # Gamma API
+            # Presenton API
             slide_count = task_data.get('slide_count', 10)
-            formatted_text = self.gamma_api.format_content_for_gamma(content, task_type)
+            formatted_text = self.presenton_api.format_content_for_gamma(content, task_type)
 
-            ai_result = await self.gamma_api.create_presentation_from_text(
+            ai_result = await self.presenton_api.create_presentation_from_text(
                 text_content=formatted_text,
                 title=content.get('project_name') or content.get('title', 'Prezentatsiya'),
                 num_cards=slide_count,
@@ -421,7 +436,7 @@ Muvaffaqiyatlar! 🚀
             )
 
             if not ai_result:
-                raise Exception("Gamma API xato")
+                raise Exception("Presenton API xato")
 
             generation_id = ai_result.get('generationId')
             if not generation_id:
@@ -430,12 +445,12 @@ Muvaffaqiyatlar! 🚀
             self.user_db.update_task_status(task_uuid, 'processing', progress=50)
 
             # Kutish
-            is_ready = await self.gamma_api.wait_for_completion(
+            is_ready = await self.presenton_api.wait_for_completion(
                 generation_id, timeout_seconds=600, check_interval=10, wait_for_pptx=True
             )
 
             if not is_ready:
-                raise Exception("Gamma API timeout")
+                raise Exception("Presenton API timeout")
 
             self.user_db.update_task_status(task_uuid, 'processing', progress=80)
 
@@ -444,10 +459,22 @@ Muvaffaqiyatlar! 🚀
             filename = f"presentation_{task_type}_{user_id}_{timestamp}.pptx"
             output_path = f"/tmp/{filename}"
 
-            download_success = await self.gamma_api.download_pptx(generation_id, output_path)
+            download_success = await self.presenton_api.download_pptx(generation_id, output_path)
 
             if not download_success or not os.path.exists(output_path):
                 raise Exception("PPTX yuklab olinmadi")
+
+            # PPTX Post-Processing — shrift, layout, overflow tuzatish
+            if self.pptx_post_processor:
+                try:
+                    logger.info(f"🔧 PPTX post-processing boshlandi: {output_path}")
+                    pp_success = self.pptx_post_processor(output_path)
+                    if pp_success:
+                        logger.info("✅ PPTX post-processing muvaffaqiyatli")
+                    else:
+                        logger.warning("⚠️ PPTX post-processing xato, original fayl ishlatiladi")
+                except Exception as e:
+                    logger.warning(f"⚠️ PPTX post-processing exception: {e}")
 
             self.user_db.update_task_status(task_uuid, 'processing', progress=95, file_path=output_path)
 
@@ -538,7 +565,7 @@ Muvaffaqiyatlar! 🚀
                 details = answers_data.get('details', '')
                 slide_count = answers_data.get('slide_count', 10)
                 return await self.content_generator.generate_presentation_content(
-                    topic, details, slide_count, use_gpt4=False
+                    topic, details, slide_count, use_gpt4=True
                 )
         except Exception as e:
             logger.error(f"Content generation xato: {e}")

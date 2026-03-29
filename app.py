@@ -19,16 +19,16 @@ from loader import dp, bot, user_db
 
 # Import utilities
 from utils.content_generator import ContentGenerator
-from utils.gamma_api import GammaAPI
+from utils.presenton_api import PresentonAPI
 from utils.presentation_worker import PresentationWorker
 
 # API keys
 OPENAI_API_KEY = env.str("OPENAI_API_KEY")
-GAMMA_API_KEY = env.str("GAMMA_API_KEY")
+PRESENTON_URL = env.str("PRESENTON_URL", "http://presenton:80")
 
 # Initialize utilities
 content_generator = ContentGenerator(OPENAI_API_KEY)
-gamma_api = GammaAPI(GAMMA_API_KEY)
+presenton_api = PresentonAPI(PRESENTON_URL)
 presentation_worker = None
 
 import handlers.users.user_handlers
@@ -107,7 +107,7 @@ async def on_startup(dispatcher):
             bot=bot,
             user_db=user_db,
             content_generator=content_generator,
-            gamma_api=gamma_api
+            presenton_api=presenton_api
         )
         await presentation_worker.start()
         logger.info("✅ Background Worker ishga tushdi")

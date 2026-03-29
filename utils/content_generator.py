@@ -4,25 +4,17 @@ import logging
 from typing import Dict, List, Optional
 from openai import AsyncOpenAI
 
-# Loglarni sozlash
 logger = logging.getLogger(__name__)
 
 
 class ContentGenerator:
     """
-    OpenAI API bilan ishlash uchun yagona markazlashgan klass.
-    Quyidagi xizmatlarni o'z ichiga oladi:
-    1. Pitch Deck generatsiyasi (Startaplar uchun)
-    2. Prezentatsiya generatsiyasi (Umumiy mavzular)
-    3. AiDA - Mahalla Biznes Tahlili (Yangi funksiya)
+    Gemini API bilan professional content yaratish
+    Pitch Deck va Prezentatsiya uchun
     """
 
     def __init__(self, api_key: str):
         self.client = AsyncOpenAI(api_key=api_key)
-
-    # =========================================================================
-    # 1-BLOK: PITCH DECK (STARTAPLAR UCHUN)
-    # =========================================================================
 
     async def generate_pitch_deck_content(
             self,
@@ -31,17 +23,24 @@ class ContentGenerator:
     ) -> Dict:
         """
         Pitch Deck uchun professional content yaratish
-        """
-        model = "gpt-4o" if use_gpt4 else "gpt-3.5-turbo"
 
-        # 1. Avval bozor tahlilini yaratib olamiz
+        Args:
+            answers: 10 ta savolga javoblar
+            use_gpt4: GPT-4 ishlatish (yoki GPT-3.5)
+
+        Returns:
+            Professional pitch content (JSON)
+        """
+        model = "gpt-4" if use_gpt4 else "gpt-3.5-turbo"
+
+        # Avval bozor tahlilini yaratish
         market_data = await self._generate_market_analysis(
             project_info=answers[1] if len(answers) > 1 else "",
             target_audience=answers[5] if len(answers) > 5 else "",
             model=model
         )
 
-        # 2. Asosiy promptni yig'amiz
+        # To'liq pitch content yaratish
         prompt = self._build_pitch_deck_prompt(answers, market_data)
 
         try:
@@ -52,7 +51,93 @@ class ContentGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": "Siz O'zbekistondagi eng tajribali va professional investitsion tahlilchi va pitch-deck mutaxassisisiz. Maqsad: Investorni jalb qilish."
+                        "content": "Siz O'zbekistondagi eng tajribali pitch deck mutaxassisisiz. Juda batafsil, to'liq va professional content yarating."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=4000,
+                temperature=0.8,
+                response_format={"type": "json_object"}
+            )
+
+            content = json.loads(response.choices[0].message.content)
+            logger.info(f"OpenAI: Pitch deck content yaratildi")
+
+            return content
+
+        except Exception as e:
+            logger.error(f"OpenAI xato: {e}")
+            return self._generate_fallback_pitch_content(answers)
+
+    async def generate_presentation_content(
+            self,
+            topic: str,
+            details: str,
+            slide_count: int,
+            use_gpt4: bool = False
+    ) -> Dict:
+        """
+        Professional prezentatsiya uchun content yaratish
+        GPT-4o bilan ishlaydi
+        """
+        model = "gpt-4o"
+
+        prompt = f"""Siz professional prezentatsiya dizayneri va kontent yaratuvchisisiz.
+
+MAVZU: {topic}
+QO'SHIMCHA: {details or "Yo'q"}
+SLAYDLAR SONI: {slide_count}
+
+MUHIM QOIDALAR:
+1. Har bir slayd QISQA va TA'SIRLI bo'lsin — slaydda KO'P MATN BO'LMASIN
+2. Bullet pointlar MAKSIMUM 4-5 ta, har biri 1 qator (8-10 so'z)
+3. Slayd sarlavhasi qisqa va kuchli bo'lsin (3-6 so'z)
+4. Content 2-3 jumla, ortiq emas (har bir jumla 15 so'zdan oshmasin)
+
+RASM KALIT SO'ZLARI QOIDALARI (JUDA MUHIM):
+- Har bir slaydga 3 ta INGLIZ tilidagi kalit so'z bering: primary, secondary, fallback
+- primary: ANIQ, FOTOGRAFIYA QILINADIGAN narsa — 2-3 so'z. Masalan: "students classroom desks", "doctor examining patient", "solar panels rooftop"
+- secondary: Biroz kengroq — 2 so'z. Masalan: "education learning", "medical clinic", "renewable energy"
+- fallback: Bitta oddiy so'z garantiya natija uchun: "school", "hospital", "energy"
+- HECH QACHON abstrakt so'zlar ISHLATMANG: "innovation", "synergy", "strategy", "paradigm", "transformation", "concept"
+- O'zingizdan so'rang: "Fotograf bu narsani SURATGA ola oladimi?" Agar yo'q — so'zni almashtiring
+- YOMON: "digital transformation" → YAXSHI: "person laptop modern office"
+- YOMON: "economic growth" → YAXSHI: "financial chart green arrow up"
+- YOMON: "education innovation" → YAXSHI: "teacher whiteboard classroom students"
+
+JSON formatida qaytaring:
+{{
+  "title": "Prezentatsiya sarlavhasi",
+  "subtitle": "Qisqa tavsif (1 jumla)",
+  "slides": [
+    {{
+      "slide_number": 1,
+      "title": "Qisqa sarlavha (3-6 so'z)",
+      "content": "2-3 jumla bilan asosiy fikr",
+      "bullet_points": ["Qisqa nuqta 1", "Qisqa nuqta 2", "Qisqa nuqta 3"],
+      "image_keywords": {{
+        "primary": "specific two-word photographable scene",
+        "secondary": "broader visual concept",
+        "fallback": "single common noun"
+      }}
+    }}
+  ]
+}}
+
+{slide_count} ta slayd yarating. Birinchi slayd — kirish, oxirgi — xulosa."""
+
+        try:
+            logger.info(f"OpenAI: Prezentatsiya content yaratish (model: {model})")
+
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Siz professional prezentatsiya yaratuvchisiz. Slaydlar QISQA va TA'SIRLI bo'lsin — ko'p matn yozmaslik kerak. O'zbek tilida javob bering. image_keywords INGLIZ tilida bo'lsin. Rasm kalit so'zlari ANIQ va FOTOGRAFIYA QILINADIGAN bo'lsin — abstrakt tushunchalar emas, balki real ob'ektlar va sahnalar."
                     },
                     {
                         "role": "user",
@@ -65,290 +150,169 @@ class ContentGenerator:
             )
 
             content = json.loads(response.choices[0].message.content)
-            logger.info("OpenAI: Pitch deck content muvaffaqiyatli yaratildi")
+            logger.info(f"OpenAI: Prezentatsiya content yaratildi")
+
             return content
 
         except Exception as e:
-            logger.error(f"OpenAI xato (Pitch Deck): {e}")
-            return self._generate_fallback_pitch_content(answers)
+            logger.error(f"OpenAI xato: {e}")
+            return self._generate_fallback_presentation_content(topic, details, slide_count)
 
     async def _generate_market_analysis(self, project_info: str, target_audience: str, model: str) -> Dict:
-        """Bozor tahlili (TAM/SAM/SOM) yaratish uchun yordamchi funksiya"""
+        """Bozor tahlili yaratish"""
+
         prompt = f"""
-        Loyiha: {project_info}
-        Auditoriya: {target_audience}
+Loyiha: {project_info}
+Auditoriya: {target_audience}
 
-        Vazifa: O'zbekiston bozori uchun qisqa tahlil bering.
+Bozor tahlili JSON:
+{{
+  "tam": "100 mln dollar",
+  "sam": "30 mln dollar",
+  "som": "5 mln dollar",
+  "growth_rate": "25% yillik",
+  "trends": "• Trend 1\\n• Trend 2",
+  "segments": "• Segment 1\\n• Segment 2"
+}}
+"""
 
-        Javobni JSON formatida qaytaring:
-        {{
-          "tam": "Umumiy bozor hajmi (USD)",
-          "sam": "O'zlashtirish mumkin bo'lgan bozor (USD)",
-          "som": "Real bozor ulushi (USD)",
-          "growth_rate": "Yillik o'sish %",
-          "trends": "Bozordagi trendlar (ro'yxat)",
-          "segments": "Mijoz segmentlari"
-        }}
-        """
         try:
             response = await self.client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": "Siz bozor tahlili ekspertisiz."},
+                    {"role": "system", "content": "Siz bozor tahlili mutaxassisisiz."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=1000,
                 temperature=0.7,
                 response_format={"type": "json_object"}
             )
+
             return json.loads(response.choices[0].message.content)
+
         except:
             return {
                 'tam': "100 mln dollar",
                 'sam': "30 mln dollar",
                 'som': "5 mln dollar",
-                'growth_rate': "20% yillik",
-                'trends': "Raqamlashtirish, Mobil ilovalar",
-                'segments': "B2B va B2C"
+                'growth_rate': "25% yillik",
+                'trends': "• Raqamlashtirish\n• Mobil yechimlar",
+                'segments': "• B2B: 60%\n• B2C: 40%"
             }
 
     def _build_pitch_deck_prompt(self, answers: List[str], market_data: Dict) -> str:
-        """Pitch deck promptini shakllantirish"""
+        """Pitch deck prompt"""
+
         return f"""
-        Quyidagi ma'lumotlar asosida Startap uchun Pitch Deck matnini yozing.
+O'zbekistondagi eng yaxshi pitch deck mutaxassisisiz. BATAFSIL content yarating.
 
-        STARTUP MA'LUMOTLARI:
-        1. Asoschi: {answers[0] if len(answers) > 0 else ""}
-        2. Loyiha nomi: {answers[1] if len(answers) > 1 else ""}
-        3. Qisqa tavsif: {answers[2] if len(answers) > 2 else ""}
-        4. Muammo: {answers[3] if len(answers) > 3 else ""}
-        5. Yechim: {answers[4] if len(answers) > 4 else ""}
-        6. Auditoriya: {answers[5] if len(answers) > 5 else ""}
-        7. Biznes model: {answers[6] if len(answers) > 6 else ""}
-        8. Raqobatchilar: {answers[7] if len(answers) > 7 else ""}
-        9. Raqobat ustunligi: {answers[8] if len(answers) > 8 else ""}
-        10. Moliya: {answers[9] if len(answers) > 9 else ""}
+STARTUP:
+Asoschi: {answers[0] if len(answers) > 0 else ""}
+Loyiha: {answers[1] if len(answers) > 1 else ""}
+Tavsif: {answers[2] if len(answers) > 2 else ""}
+Muammo: {answers[3] if len(answers) > 3 else ""}
+Yechim: {answers[4] if len(answers) > 4 else ""}
+Auditoriya: {answers[5] if len(answers) > 5 else ""}
+Biznes: {answers[6] if len(answers) > 6 else ""}
+Raqobat: {answers[7] if len(answers) > 7 else ""}
+Ustunlik: {answers[8] if len(answers) > 8 else ""}
+Moliya: {answers[9] if len(answers) > 9 else ""}
 
-        BOZOR TAHLILI: {json.dumps(market_data, ensure_ascii=False)}
+BOZOR: {json.dumps(market_data, ensure_ascii=False)}
 
-        JSON FORMATDA QAYTARING:
-        {{
-          "project_name": "Loyiha nomi",
-          "tagline": "Jarangdor shior (slogan)",
-          "problem_title": "MUAMMO",
-          "problem": "Muammoning og'riqli tomonlari (storytelling usulida)",
-          "solution_title": "YECHIM",
-          "solution": "Bizning yechimimiz qanday ishlaydi?",
-          "market_title": "BOZOR IMKONIYATLARI",
-          "market": "TAM/SAM/SOM tahlili",
-          "business_title": "BIZNES MODEL",
-          "business_model": "Qanday pul topamiz?",
-          "competition_title": "RAQOBAT",
-          "competition": "Raqobatchilardan farqimiz",
-          "financials_title": "MOLIYA",
-          "financials": "Investitsiya va daromad prognozi",
-          "team_title": "JAMOA",
-          "team": "Jamoa haqida qisqa",
-          "cta": "Call to Action (Investorga taklif)"
-        }}
-        """
+JSON qaytaring:
+{{
+  "project_name": "Loyiha nomi",
+  "author": "Ism",
+  "tagline": "Shior (8-10 so'z)",
+  "problem_title": "MUAMMO",
+  "problem": "Batafsil muammo (5-7 jumla)",
+  "solution_title": "YECHIM",
+  "solution": "Batafsil yechim (5-7 jumla)",
+  "market_title": "BOZOR",
+  "market": "Bozor tahlili",
+  "business_title": "BIZNES",
+  "business_model": "Daromad modeli",
+  "competition_title": "RAQOBAT",
+  "competition": "Raqobatchilar tahlili",
+  "advantage_title": "USTUNLIK",
+  "advantage": "Ustunliklar",
+  "financials_title": "MOLIYA",
+  "financials": "Moliyaviy prognoz",
+  "team_title": "JAMOA",
+  "team": "Jamoa a'zolari",
+  "milestones_title": "YO'L XARITASI",
+  "milestones": "Bosqichlar",
+  "cta": "Chaqiruv"
+}}
+"""
 
     def _generate_fallback_pitch_content(self, answers: List[str]) -> Dict:
-        """Pitch deck uchun zaxira javob"""
+        """Fallback pitch content"""
         return {
-            'project_name': answers[1] if len(answers) > 1 else "Yangi Loyiha",
-            'tagline': "Kelajak texnologiyalari",
-            'problem': f"Asosiy muammo: {answers[3] if len(answers) > 3 else 'Aniqlanmagan'}",
-            'solution': f"Yechim: {answers[4] if len(answers) > 4 else 'Platforma yaratish'}",
-            'market': "Bozor o'sib bormoqda.",
-            'business_model': "Obuna va xizmat ko'rsatish.",
-            'cta': "Bizga qo'shiling!"
+            'project_name': answers[1] if len(answers) > 1 else "Innovatsion Loyiha",
+            'author': answers[0] if len(answers) > 0 else "Tadbirkor",
+            'tagline': "Kelajakni birgalikda quramiz",
+            'problem_title': "MUAMMO",
+            'problem': f"• Asosiy muammo: {answers[3] if len(answers) > 3 else 'Bozordagi samarasizlik'}\nKo'plab kompaniyalar kurashmoqda.",
+            'solution_title': "YECHIM",
+            'solution': f"• Yechim: {answers[4] if len(answers) > 4 else 'Innovatsion platforma'}\nZamonaviy texnologiyalar orqali hal qilamiz.",
+            'market_title': "BOZOR",
+            'market': f"📊 BOZOR:\n• TAM: 500 mln dollar\n• SAM: 150 mln dollar\n• SOM: 30 mln dollar\n\n🎯 Auditoriya: {answers[5] if len(answers) > 5 else 'B2B va B2C'}",
+            'business_title': "BIZNES",
+            'business_model': f"💰 {answers[6] if len(answers) > 6 else 'SaaS subscription'}\n• Oylik: 50,000-500,000 so'm",
+            'competition_title': "RAQOBAT",
+            'competition': f"🏆 {answers[7] if len(answers) > 7 else 'Mahalliy va xalqaro'}\nUstunlik: Mahalliy bozorni tushunish",
+            'advantage_title': "USTUNLIK",
+            'advantage': f"⭐ {answers[8] if len(answers) > 8 else 'Yagona mahalliy yechim'}\n1. TEXNOLOGIK\n2. NARX\n3. MAHALLIY",
+            'financials_title': "MOLIYA",
+            'financials': f"📊 {answers[9] if len(answers) > 9 else 'Ijobiy'}\n• 1-yil: 500 mln so'm",
+            'team_title': "JAMOA",
+            'team': "👥 PROFESSIONAL JAMOA\n• CEO: 10+ yil\n• CTO: 8+ yil",
+            'milestones_title': "YO'L XARITASI",
+            'milestones': "🗓️ BOSQICHLAR:\n• 0-3 OY: MVP\n• 3-6 OY: 500 mijoz\n• 6-12 OY: Break-even",
+            'cta': "Keling, birgalikda yangi standartlar o'rnatamiz! 🚀"
         }
 
-    # =========================================================================
-    # 2-BLOK: ODDIY PREZENTATSIYA
-    # =========================================================================
-
-    async def generate_presentation_content(
-            self,
-            topic: str,
-            details: str,
-            slide_count: int,
-            use_gpt4: bool = False
-    ) -> Dict:
-        """
-        Oddiy mavzular bo'yicha prezentatsiya contentini yaratish
-        """
-        model = "gpt-4o" if use_gpt4 else "gpt-3.5-turbo"
-
-        prompt = f"""
-        Siz professional spikersiz. O'zbek tilida taqdimot tayyorlang.
-
-        MAVZU: {topic}
-        QO'SHIMCHA: {details}
-        SLAYDLAR SONI: {slide_count}
-
-        JSON FORMAT:
-        {{
-          "title": "Taqdimot sarlavhasi",
-          "subtitle": "Qisqa izoh",
-          "slides": [
-            {{
-              "slide_number": 1,
-              "title": "Slayd sarlavhasi",
-              "content": "Asosiy matn (paragraph)",
-              "bullet_points": ["Nuqta 1", "Nuqta 2", "Nuqta 3"]
-            }}
-          ]
-        }}
-        """
-
-        try:
-            logger.info(f"OpenAI: Prezentatsiya yaratish boshlandi (model: {model})")
-            response = await self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": "Siz taqdimotlar ustasisiz."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=3000,
-                temperature=0.7,
-                response_format={"type": "json_object"}
-            )
-            return json.loads(response.choices[0].message.content)
-
-        except Exception as e:
-            logger.error(f"OpenAI xato (Prezentatsiya): {e}")
-            return self._generate_fallback_presentation_content(topic, details, slide_count)
-
     def _generate_fallback_presentation_content(self, topic: str, details: str, slide_count: int) -> Dict:
-        """Prezentatsiya uchun zaxira javob"""
+        """Fallback prezentatsiya content"""
         slides = []
-        for i in range(1, slide_count + 1):
+
+        # Mavzudan kalit so'z yaratish
+        topic_words = topic.lower().split()
+        base_keyword = topic_words[0] if topic_words else "presentation"
+
+        slides.append({
+            "slide_number": 1,
+            "title": topic,
+            "content": f"{topic} haqida professional prezentatsiya.",
+            "bullet_points": [],
+            "image_keywords": {
+                "primary": f"{base_keyword} presentation cover",
+                "secondary": f"{base_keyword} concept",
+                "fallback": "presentation"
+            }
+        })
+
+        for i in range(2, slide_count + 1):
             slides.append({
                 "slide_number": i,
-                "title": f"{topic}: {i}-qism",
-                "content": f"{details[:50]}... haqida ma'lumot.",
-                "bullet_points": ["Muhim nuqta 1", "Muhim nuqta 2"]
-            })
-        return {"title": topic, "subtitle": "Avtomatik generatsiya", "slides": slides}
-
-    # =========================================================================
-    # 3-BLOK: AiDA - MAHALLA BIZNES TAHLILI (YANGI)
-    # =========================================================================
-
-    async def generate_mahalla_analysis(
-            self,
-            mahalla_data: Dict[str, str],
-            use_gpt4: bool = True
-    ) -> Dict:
-        """
-        Mahalla ma'lumotlari asosida professional biznes tahlil va g'oyalar (AiDA).
-        """
-        model = "gpt-4o" if use_gpt4 else "gpt-3.5-turbo"
-
-        # Promptni alohida metod orqali olamiz
-        prompt = self._build_mahalla_prompt(mahalla_data)
-
-        try:
-            logger.info(f"OpenAI: Mahalla tahlili boshlandi (model: {model})")
-
-            response = await self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Siz O'zbekiston iqtisodiyoti, mahalliy bozor xususiyatlari va tadbirkorlik muhitini chuqur tushunadigan professional biznes-konsultantsiz. Vazifangiz: Berilgan ma'lumotlardan kelib chiqib, quruq nazariya emas, balki aniq raqamlarga asoslangan, real va daromadli biznes yechimlarini taqdim etish."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                "title": f"{topic} - Bo'lim {i - 1}",
+                "content": f"{topic} ning {i - 1}-qismi.",
+                "bullet_points": [
+                    f"{topic} asosiy jihati",
+                    f"Amaliy qo'llanilishi",
+                    f"Kelajak istiqbollari"
                 ],
-                max_tokens=2500,
-                temperature=0.7,
-                response_format={"type": "json_object"}
-            )
-
-            content = json.loads(response.choices[0].message.content)
-            logger.info("OpenAI: Mahalla tahlili muvaffaqiyatli yakunlandi")
-            return content
-
-        except Exception as e:
-            logger.error(f"OpenAI xato (Mahalla tahlili): {e}")
-            return self._generate_fallback_mahalla_content(mahalla_data)
-
-    def _build_mahalla_prompt(self, data: Dict[str, str]) -> str:
-        """Mahalla tahlili uchun mukammal prompt strukturasi"""
-        return f"""
-        Quyidagi mahalla profilini professional tarzda tahlil qiling va eng optimal 3 ta biznes g'oyasini JSON formatida taqdim eting.
-
-        📊 MAHALLA PROFILI:
-        1.  📍 Joylashuv: {data.get('mahalla_nomi', 'Nomalum')} (Hudud turi: {data.get('hudud_turi', 'Shahar')})
-        2.  👥 Demografiya: Jami aholi {data.get('aholi_soni', '0')}. Yoshlar (14-30): {data.get('yoshlar_soni', '0')}. Ayollar: {data.get('ayollar_soni', '0')}.
-        3.  🏫 Ijtimoiy Infratuzilma: Maktablar soni: {data.get('maktablar', '0')}, Bog'chalar soni: {data.get('bogchalar', '0')}.
-        4.  🛣 Logistika: Magistral yo'lga {data.get('yol_yaqinligi', 'ortacha')} masofada joylashgan.
-        5.  💰 Iqtisodiy holat: Aholining xarid qobiliyati {data.get('xarid_qobiliyati', 'ortacha')}.
-        6.  🏢 Mavjud raqobat va bizneslar: Asosan {data.get('tadbirkorlik_turi', 'Aniqlanmagan')} rivojlangan ({data.get('tadbirkorlik_boshqa', '')}).
-        7.  ✈️ Turizm salohiyati: {data.get('turizm', 'Yoq')} ({data.get('turizm_batafsil', '')}).
-        8.  ⚠️ Aholi eng ko'p ehtiyoj sezayotgan sohalar: {data.get('ehtiyojlar', 'Aniqlanmagan')}.
-
-        🎯 VAZIFA:
-        Yuqoridagi demografik va iqtisodiy ko'rsatkichlarni, shuningdek raqobat muhitini chuqur tahlil qilib, shu mahallada ochish eng ko'p foyda keltiradigan 3 ta biznesni taklif qiling.
-
-        TALABLAR:
-        - "Reason" (Asos): Nega aynan shu biznes? (Masalan: "Maktablar ko'pligi va yoshlar soni yuqoriligi sababli o'quv markaziga talab katta bo'ladi").
-        - "Investment": Taxminiy boshlang'ich sarmoya (USD yoki So'mda).
-        - "Profitability": Kutilayotgan oylik sof foyda va loyihaning o'zini qoplash muddati.
-
-        JAVOB FORMATI (JSON SHART):
-        {{
-          "summary": "Mahalla bozorining qisqacha professional tahlili (2-3 gap)",
-          "top_businesses": [
-            {{
-              "name": "Biznes Nomi (Masalan: O'quv Markazi)",
-              "reason": "Asoslovchi sabab (Demografiya va ehtiyojga bog'lang)",
-              "investment": "Masalan: $3,000 - $5,000",
-              "profitability": "Masalan: Oyiga $500-$800, 6 oyda qoplaydi"
-            }},
-            {{
-              "name": "Biznes Nomi 2",
-              "reason": "...",
-              "investment": "...",
-              "profitability": "..."
-            }},
-            {{
-              "name": "Biznes Nomi 3",
-              "reason": "...",
-              "investment": "...",
-              "profitability": "..."
-            }}
-          ]
-        }}
-        """
-
-    def _generate_fallback_mahalla_content(self, data: Dict) -> Dict:
-        """API ishlamagan holatda zaxira javob"""
-        return {
-            "summary": "Tizimda texnik yuklama mavjud, lekin umumiy demografik tahlilga ko'ra quyidagi yo'nalishlar tavsiya etiladi.",
-            "top_businesses": [
-                {
-                    "name": "Oziq-ovqat va kundalik ehtiyojlar do'koni",
-                    "reason": "Aholi yashash punktlarida bu eng barqaror va xavfsiz (bankrot bo'lmaydigan) biznes turi hisoblanadi.",
-                    "investment": "$5,000 - $15,000",
-                    "profitability": "Barqaror, oylik $600-$1200 foyda"
-                },
-                {
-                    "name": "O'quv markazi (IT va Xorijiy tillar)",
-                    "reason": f"Hududdagi yoshlar soni ({data.get('yoshlar_soni', 'kop')}) va maktablar mavjudligi ta'limga doimiy yuqori talabni yaratadi.",
-                    "investment": "$3,000 - $8,000",
-                    "profitability": "Yuqori marjali (6-9 oyda qoplaydi)"
-                },
-                {
-                    "name": "Servis markazi (Sartaroshxona/Tikuvchilik)",
-                    "reason": "Aholiga maishiy xizmat ko'rsatish har doim kerak va katta sarmoya talab qilmaydi.",
-                    "investment": "$2,000 - $5,000",
-                    "profitability": "O'rtacha va doimiy daromad"
+                "image_keywords": {
+                    "primary": f"{base_keyword} analysis chart",
+                    "secondary": f"{base_keyword} data",
+                    "fallback": "business"
                 }
-            ]
+            })
+
+        return {
+            "title": topic,
+            "subtitle": details[:100] if details else f"{topic} haqida",
+            "slides": slides
         }
