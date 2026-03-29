@@ -79,6 +79,7 @@ class PresentonAPI:
             "include_title_slide": True,
             "include_table_of_contents": True,
             "export_as": "pptx",
+            "disable_image": True,
         }
 
         try:
