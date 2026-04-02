@@ -23,6 +23,9 @@ menu_admin = ReplyKeyboardMarkup(
             KeyboardButton(text='💵 Balans qoshish'),
         ],
         [
+            KeyboardButton(text='📋 Biznes rejalar'),
+        ],
+        [
             KeyboardButton(text='📄 Yordam'),
             KeyboardButton(text='🔙 Ortga qaytish'),
         ],
@@ -40,6 +43,25 @@ menu_ichki_admin = ReplyKeyboardMarkup(
         ],
         [
             KeyboardButton(text='👥 Barcha adminlar'),
+            KeyboardButton(text='🔙 Ortga qaytish'),
+        ],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True
+)
+
+
+menu_ichki_plan = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text='➕ Plan qo\'shish'),
+            KeyboardButton(text='📋 Barcha planlar'),
+        ],
+        [
+            KeyboardButton(text='❌ Plan o\'chirish'),
+            KeyboardButton(text='📊 Plan statistikasi'),
+        ],
+        [
             KeyboardButton(text='🔙 Ortga qaytish'),
         ],
     ],
@@ -97,6 +119,9 @@ def main_menu_keyboard(telegram_id=None, user_db=None):
             [
                 KeyboardButton("📊 Prezentatsiya", web_app=WebAppInfo(url=pres_url)),
                 KeyboardButton("📝 Mustaqil ish", web_app=WebAppInfo(url=cw_url)),
+            ],
+            [
+                KeyboardButton("🏘 Mahalla Tahlili"),
             ],
             [
                 KeyboardButton("💰 Balansim"),

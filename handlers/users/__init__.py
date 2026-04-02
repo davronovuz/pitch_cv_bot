@@ -5,3 +5,4 @@ from . import plan_admin
 from . import user_handlers
 from . import reklama
 from . import statistika_admin
+from . import mahalla

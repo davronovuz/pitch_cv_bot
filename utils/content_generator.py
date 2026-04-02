@@ -158,6 +158,87 @@ JSON formatida qaytaring:
             logger.error(f"OpenAI xato: {e}")
             return self._generate_fallback_presentation_content(topic, details, slide_count)
 
+    async def generate_mahalla_analysis(self, mahalla_data: dict, use_gpt4: bool = True) -> dict:
+        """Mahalla ma'lumotlari asosida professional biznes tahlil va g'oyalar (AiDA)."""
+        model = "gpt-4o" if use_gpt4 else "gpt-3.5-turbo"
+        data = mahalla_data
+
+        prompt = f"""
+        Quyidagi mahalla profilini professional tarzda tahlil qiling va eng optimal 3 ta biznes g'oyasini JSON formatida taqdim eting.
+
+        MAHALLA PROFILI:
+        1. Joylashuv: {data.get('mahalla_nomi', 'Nomalum')} (Hudud turi: {data.get('hudud_turi', 'Shahar')})
+        2. Demografiya: Jami aholi {data.get('aholi_soni', '0')}. Yoshlar (14-30): {data.get('yoshlar_soni', '0')}. Ayollar: {data.get('ayollar_soni', '0')}.
+        3. Ijtimoiy Infratuzilma: Maktablar: {data.get('maktablar', '0')}, Bog'chalar: {data.get('bogchalar', '0')}.
+        4. Logistika: Magistral yo'lga {data.get('yol_yaqinligi', 'ortacha')} masofada.
+        5. Iqtisodiy holat: Xarid qobiliyati {data.get('xarid_qobiliyati', 'ortacha')}.
+        6. Mavjud bizneslar: {data.get('tadbirkorlik_turi', 'Aniqlanmagan')} ({data.get('tadbirkorlik_boshqa', '')}).
+        7. Turizm salohiyati: {data.get('turizm', 'Yoq')} ({data.get('turizm_batafsil', '')}).
+        8. Aholi ehtiyojlari: {data.get('ehtiyojlar', 'Aniqlanmagan')}.
+
+        VAZIFA: Eng ko'p foyda keltiradigan 3 ta biznesni taklif qiling.
+
+        JSON formatda qaytaring:
+        {{
+          "summary": "Mahalla bozorining qisqacha tahlili (2-3 gap)",
+          "top_businesses": [
+            {{
+              "name": "Biznes nomi",
+              "reason": "Asoslovchi sabab",
+              "investment": "$3,000 - $5,000",
+              "profitability": "Oyiga $500-$800, 6 oyda qoplaydi"
+            }},
+            {{"name": "...", "reason": "...", "investment": "...", "profitability": "..."}},
+            {{"name": "...", "reason": "...", "investment": "...", "profitability": "..."}}
+          ]
+        }}
+        """
+
+        try:
+            logger.info(f"OpenAI: Mahalla tahlili boshlandi (model: {model})")
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Siz O'zbekiston iqtisodiyoti va mahalliy bozorni chuqur tushunadigan professional biznes-konsultantsiz."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2500,
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            content = json.loads(response.choices[0].message.content)
+            logger.info("OpenAI: Mahalla tahlili muvaffaqiyatli yakunlandi")
+            return content
+
+        except Exception as e:
+            logger.error(f"OpenAI xato (Mahalla tahlili): {e}")
+            return {
+                "summary": "Tizimda texnik yuklama mavjud, lekin umumiy demografik tahlilga ko'ra quyidagi yo'nalishlar tavsiya etiladi.",
+                "top_businesses": [
+                    {
+                        "name": "Oziq-ovqat do'koni",
+                        "reason": "Aholi ehtiyojiga asoslanib",
+                        "investment": "$2,000 - $4,000",
+                        "profitability": "Oyiga $400-$700, 6-8 oyda qoplaydi"
+                    },
+                    {
+                        "name": "Xizmat ko'rsatish markazi",
+                        "reason": "Mahalliy xizmat ehtiyoji",
+                        "investment": "$1,500 - $3,000",
+                        "profitability": "Oyiga $300-$500, 5-7 oyda qoplaydi"
+                    },
+                    {
+                        "name": "O'quv markazi",
+                        "reason": "Yoshlar soni yuqori",
+                        "investment": "$3,000 - $6,000",
+                        "profitability": "Oyiga $600-$1000, 6-9 oyda qoplaydi"
+                    }
+                ]
+            }
+
     async def _generate_market_analysis(self, project_info: str, target_audience: str, model: str) -> Dict:
         """Bozor tahlili yaratish"""
 
