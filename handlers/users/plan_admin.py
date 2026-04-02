@@ -237,7 +237,8 @@ async def plan_description_received(message: types.Message, state: FSMContext):
         user_db.execute(
             """INSERT INTO BusinessPlans (title, description, price, file_id, category, is_active)
                VALUES (?, ?, ?, ?, ?, 1)""",
-            (data['title'], description, data['price'], data['file_id'], data['category'])
+            (data['title'], description, data['price'], data['file_id'], data['category']),
+            commit=True
         )
 
         label = CATEGORY_LABELS.get(data['category'], data['category'])
@@ -311,7 +312,7 @@ async def delete_plan_confirm(call: types.CallbackQuery, state: FSMContext):
 
     # Soft delete
     user_db.execute(
-        "UPDATE BusinessPlans SET is_active=0 WHERE id=?", (plan_id,)
+        "UPDATE BusinessPlans SET is_active=0 WHERE id=?", (plan_id,), commit=True
     )
     await state.finish()
     await call.message.edit_text(
