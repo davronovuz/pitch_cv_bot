@@ -88,7 +88,7 @@ def kb_hudud():
 
 def kb_ha_yoq():
     markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    markup.add("✅ Ha", "❌ Yo'q")
+    markup.add("✅ Ha", "🚫 Yo'q")
     markup.add("❌ Bekor qilish")
     return markup
 
@@ -218,12 +218,14 @@ async def q11_logic(message: types.Message, state: FSMContext):
     if message.text == "✅ Ha":
         await message.answer("✏️ <b>Qaysi obyektlar bor?</b>", reply_markup=cancel_keyboard(), parse_mode='HTML')
         await MahallaStates.turizm_batafsil.set()
-    else:
+    elif message.text == "🚫 Yo'q":
         await state.update_data(turizm="Yo'q", turizm_batafsil="")
         await message.answer(
             "1️⃣2️⃣ <b>Mahallaning eng muhim ehtiyojlari?</b>\n(Masalan: bozorcha, dorixona, o'quv markazi...)",
             reply_markup=cancel_keyboard(), parse_mode='HTML')
         await MahallaStates.ehtiyojlar.set()
+    else:
+        await message.answer("1️⃣1️⃣ <b>Turizm obyektlari bormi?</b>", reply_markup=kb_ha_yoq(), parse_mode='HTML')
 
 
 @dp.message_handler(state=MahallaStates.turizm_batafsil)
