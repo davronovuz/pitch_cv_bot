@@ -77,7 +77,8 @@ class ContentGenerator:
             topic: str,
             details: str,
             slide_count: int,
-            use_gpt4: bool = False
+            use_gpt4: bool = False,
+            language: str = "uz"
     ) -> Dict:
         """
         Professional prezentatsiya uchun content yaratish
@@ -85,66 +86,111 @@ class ContentGenerator:
         """
         model = "gpt-4o"
 
-        prompt = f"""Siz professional prezentatsiya dizayneri va kontent yaratuvchisisiz.
+        lang_map = {
+            "uz": "O'zbek tilida",
+            "ru": "На русском языке",
+            "en": "In English"
+        }
+        lang_instruction = lang_map.get(language, "O'zbek tilida")
 
-MAVZU: {topic}
-QO'SHIMCHA: {details or "Yo'q"}
-SLAYDLAR SONI: {slide_count}
+        # Til bo'yicha system prompt
+        system_prompts = {
+            "uz": "Siz professional prezentatsiya mutaxassisisiz. BATAFSIL, MAZMUNLI va INFORMATIV kontent yarating. Har bir slayd to'liq ma'lumotga ega bo'lsin — kam matn yozish MUMKIN EMAS. O'zbek tilida professional uslubda yozing. image_keywords INGLIZ tilida. Har bir bullet_point 1-2 jumla bo'lsin, oddiy ro'yxat emas.",
+            "ru": "Вы профессиональный эксперт по презентациям. Создайте ПОДРОБНЫЙ, СОДЕРЖАТЕЛЬНЫЙ и ИНФОРМАТИВНЫЙ контент. Каждый слайд должен быть полноценным — писать мало текста НЕЛЬЗЯ. Пишите на русском языке профессиональным стилем. image_keywords на АНГЛИЙСКОМ языке. Каждый bullet_point — 1-2 предложения, не просто список.",
+            "en": "You are a professional presentation expert. Create DETAILED, MEANINGFUL and INFORMATIVE content. Each slide must have full content — writing too little is NOT allowed. Write in English in a professional style. image_keywords in ENGLISH. Each bullet_point should be 1-2 sentences, not just a simple list."
+        }
+        system_prompt = system_prompts.get(language, system_prompts["uz"])
 
-MUHIM QOIDALAR:
-1. Har bir slayd QISQA va TA'SIRLI bo'lsin — slaydda KO'P MATN BO'LMASIN
-2. Bullet pointlar MAKSIMUM 4-5 ta, har biri 1 qator (8-10 so'z)
-3. Slayd sarlavhasi qisqa va kuchli bo'lsin (3-6 so'z)
-4. Content 2-3 jumla, ortiq emas (har bir jumla 15 so'zdan oshmasin)
+        # Til bo'yicha prompt qoidalari
+        rules_map = {
+            "uz": """KONTENT QOIDALARI:
+1. Har bir slayd sarlavhasi aniq va tushunarli bo'lsin (4-8 so'z)
+2. Har bir slayd uchun "content" maydoni — 3-5 ta to'liq jumla yozing. Batafsil, informativ matn.
+3. Har bir slaydda 5-7 ta bullet_points bo'lsin. Har bir bullet — 1-2 jumla, batafsil va foydali ma'lumot.
+4. Slaydlar orasida mantiqiy bog'lanish bo'lsin.
+5. Kirish slaydida mavzuning dolzarbligi va maqsadi yozilsin.
+6. Xulosa slaydida asosiy xulosalar va takliflar bo'lsin.
+7. O'rtadagi slaydlarda mavzuning turli jihatlarini batafsil yoritib bering.""",
+            "ru": """ПРАВИЛА КОНТЕНТА:
+1. Заголовок каждого слайда — чёткий и понятный (4-8 слов)
+2. Поле "content" — 3-5 полных предложений. Подробный, информативный текст.
+3. В каждом слайде 5-7 bullet_points. Каждый — 1-2 предложения с полезной информацией.
+4. Между слайдами должна быть логическая связь.
+5. Вводный слайд — актуальность темы и цель.
+6. Заключительный слайд — основные выводы и рекомендации.
+7. В остальных слайдах раскройте разные аспекты темы.""",
+            "en": """CONTENT RULES:
+1. Each slide title should be clear and concise (4-8 words)
+2. "content" field — 3-5 full sentences. Detailed, informative text.
+3. Each slide should have 5-7 bullet_points. Each bullet — 1-2 sentences with useful information.
+4. Slides should have logical flow between them.
+5. Introduction slide — relevance of the topic and purpose.
+6. Conclusion slide — key takeaways and recommendations.
+7. Middle slides should cover different aspects of the topic in detail."""
+        }
+        rules = rules_map.get(language, rules_map["uz"])
 
-RASM KALIT SO'ZLARI QOIDALARI (JUDA MUHIM):
-- Har bir slaydga 3 ta INGLIZ tilidagi kalit so'z bering: primary, secondary, fallback
-- primary: ANIQ, FOTOGRAFIYA QILINADIGAN narsa — 2-3 so'z. Masalan: "students classroom desks", "doctor examining patient", "solar panels rooftop"
-- secondary: Biroz kengroq — 2 so'z. Masalan: "education learning", "medical clinic", "renewable energy"
-- fallback: Bitta oddiy so'z garantiya natija uchun: "school", "hospital", "energy"
-- HECH QACHON abstrakt so'zlar ISHLATMANG: "innovation", "synergy", "strategy", "paradigm", "transformation", "concept"
-- O'zingizdan so'rang: "Fotograf bu narsani SURATGA ola oladimi?" Agar yo'q — so'zni almashtiring
-- YOMON: "digital transformation" → YAXSHI: "person laptop modern office"
-- YOMON: "economic growth" → YAXSHI: "financial chart green arrow up"
-- YOMON: "education innovation" → YAXSHI: "teacher whiteboard classroom students"
+        prompt = f"""You are an expert presentation creator. Create professional, detailed presentation content.
 
-JSON formatida qaytaring:
+TOPIC: {topic}
+ADDITIONAL INFO: {details or "None"}
+NUMBER OF SLIDES: {slide_count}
+
+CRITICAL LANGUAGE REQUIREMENT: ALL text content (title, subtitle, content, bullet_points) MUST be written {lang_instruction}. This is mandatory — do NOT use any other language for the content.
+
+{rules}
+
+IMAGE KEYWORDS (ALWAYS IN ENGLISH):
+- 3 keywords per slide: primary, secondary, fallback
+- primary: CONCRETE, PHOTOGRAPHABLE thing (2-3 words). Example: "students classroom desks", "doctor examining patient"
+- secondary: Broader concept (2 words). Example: "education learning"
+- fallback: Single simple word: "school", "hospital", "energy"
+- DO NOT use abstract words: "innovation", "synergy", "strategy", "paradigm"
+
+Return JSON:
 {{
-  "title": "Prezentatsiya sarlavhasi",
-  "subtitle": "Qisqa tavsif (1 jumla)",
+  "title": "Presentation title (impactful, 5-10 words) — {lang_instruction}",
+  "subtitle": "Short description (1-2 sentences) — {lang_instruction}",
   "slides": [
     {{
       "slide_number": 1,
-      "title": "Qisqa sarlavha (3-6 so'z)",
-      "content": "2-3 jumla bilan asosiy fikr",
-      "bullet_points": ["Qisqa nuqta 1", "Qisqa nuqta 2", "Qisqa nuqta 3"],
+      "title": "Slide title (4-8 words) — {lang_instruction}",
+      "content": "3-5 full sentences — {lang_instruction}",
+      "bullet_points": [
+        "First point — 1-2 sentences — {lang_instruction}",
+        "Second point — specific data or fact",
+        "Third point — practical example",
+        "Fourth point — additional info",
+        "Fifth point — important aspect"
+      ],
       "image_keywords": {{
-        "primary": "specific two-word photographable scene",
-        "secondary": "broader visual concept",
-        "fallback": "single common noun"
+        "primary": "concrete photographable scene IN ENGLISH",
+        "secondary": "broader visual concept IN ENGLISH",
+        "fallback": "simple word IN ENGLISH"
       }}
     }}
   ]
 }}
 
-{slide_count} ta slayd yarating. Birinchi slayd — kirish, oxirgi — xulosa."""
+Create {slide_count} slides. First — introduction, last — conclusion. EVERY SLIDE MUST BE DETAILED!
+REMEMBER: All text MUST be {lang_instruction}. Only image_keywords in English."""
 
         try:
-            logger.info(f"OpenAI: Prezentatsiya content yaratish (model: {model})")
+            logger.info(f"OpenAI: Prezentatsiya content yaratish (model: {model}, lang: {language})")
 
             response = await self.client.chat.completions.create(
                 model=model,
                 messages=[
                     {
                         "role": "system",
-                        "content": "Siz professional prezentatsiya yaratuvchisiz. Slaydlar QISQA va TA'SIRLI bo'lsin — ko'p matn yozmaslik kerak. O'zbek tilida javob bering. image_keywords INGLIZ tilida bo'lsin. Rasm kalit so'zlari ANIQ va FOTOGRAFIYA QILINADIGAN bo'lsin — abstrakt tushunchalar emas, balki real ob'ektlar va sahnalar."
+                        "content": system_prompt
                     },
                     {
                         "role": "user",
                         "content": prompt
                     }
                 ],
-                max_tokens=4000,
+                max_tokens=8000,
                 temperature=0.7,
                 response_format={"type": "json_object"}
             )
@@ -157,87 +203,6 @@ JSON formatida qaytaring:
         except Exception as e:
             logger.error(f"OpenAI xato: {e}")
             return self._generate_fallback_presentation_content(topic, details, slide_count)
-
-    async def generate_mahalla_analysis(self, mahalla_data: dict, use_gpt4: bool = True) -> dict:
-        """Mahalla ma'lumotlari asosida professional biznes tahlil va g'oyalar (AiDA)."""
-        model = "gpt-4o" if use_gpt4 else "gpt-3.5-turbo"
-        data = mahalla_data
-
-        prompt = f"""
-        Quyidagi mahalla profilini professional tarzda tahlil qiling va eng optimal 3 ta biznes g'oyasini JSON formatida taqdim eting.
-
-        MAHALLA PROFILI:
-        1. Joylashuv: {data.get('mahalla_nomi', 'Nomalum')} (Hudud turi: {data.get('hudud_turi', 'Shahar')})
-        2. Demografiya: Jami aholi {data.get('aholi_soni', '0')}. Yoshlar (14-30): {data.get('yoshlar_soni', '0')}. Ayollar: {data.get('ayollar_soni', '0')}.
-        3. Ijtimoiy Infratuzilma: Maktablar: {data.get('maktablar', '0')}, Bog'chalar: {data.get('bogchalar', '0')}.
-        4. Logistika: Magistral yo'lga {data.get('yol_yaqinligi', 'ortacha')} masofada.
-        5. Iqtisodiy holat: Xarid qobiliyati {data.get('xarid_qobiliyati', 'ortacha')}.
-        6. Mavjud bizneslar: {data.get('tadbirkorlik_turi', 'Aniqlanmagan')} ({data.get('tadbirkorlik_boshqa', '')}).
-        7. Turizm salohiyati: {data.get('turizm', 'Yoq')} ({data.get('turizm_batafsil', '')}).
-        8. Aholi ehtiyojlari: {data.get('ehtiyojlar', 'Aniqlanmagan')}.
-
-        VAZIFA: Eng ko'p foyda keltiradigan 3 ta biznesni taklif qiling.
-
-        JSON formatda qaytaring:
-        {{
-          "summary": "Mahalla bozorining qisqacha tahlili (2-3 gap)",
-          "top_businesses": [
-            {{
-              "name": "Biznes nomi",
-              "reason": "Asoslovchi sabab",
-              "investment": "$3,000 - $5,000",
-              "profitability": "Oyiga $500-$800, 6 oyda qoplaydi"
-            }},
-            {{"name": "...", "reason": "...", "investment": "...", "profitability": "..."}},
-            {{"name": "...", "reason": "...", "investment": "...", "profitability": "..."}}
-          ]
-        }}
-        """
-
-        try:
-            logger.info(f"OpenAI: Mahalla tahlili boshlandi (model: {model})")
-            response = await self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Siz O'zbekiston iqtisodiyoti va mahalliy bozorni chuqur tushunadigan professional biznes-konsultantsiz."
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2500,
-                temperature=0.7,
-                response_format={"type": "json_object"}
-            )
-            content = json.loads(response.choices[0].message.content)
-            logger.info("OpenAI: Mahalla tahlili muvaffaqiyatli yakunlandi")
-            return content
-
-        except Exception as e:
-            logger.error(f"OpenAI xato (Mahalla tahlili): {e}")
-            return {
-                "summary": "Tizimda texnik yuklama mavjud, lekin umumiy demografik tahlilga ko'ra quyidagi yo'nalishlar tavsiya etiladi.",
-                "top_businesses": [
-                    {
-                        "name": "Oziq-ovqat do'koni",
-                        "reason": "Aholi ehtiyojiga asoslanib",
-                        "investment": "$2,000 - $4,000",
-                        "profitability": "Oyiga $400-$700, 6-8 oyda qoplaydi"
-                    },
-                    {
-                        "name": "Xizmat ko'rsatish markazi",
-                        "reason": "Mahalliy xizmat ehtiyoji",
-                        "investment": "$1,500 - $3,000",
-                        "profitability": "Oyiga $300-$500, 5-7 oyda qoplaydi"
-                    },
-                    {
-                        "name": "O'quv markazi",
-                        "reason": "Yoshlar soni yuqori",
-                        "investment": "$3,000 - $6,000",
-                        "profitability": "Oyiga $600-$1000, 6-9 oyda qoplaydi"
-                    }
-                ]
-            }
 
     async def _generate_market_analysis(self, project_info: str, target_audience: str, model: str) -> Dict:
         """Bozor tahlili yaratish"""

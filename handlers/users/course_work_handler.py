@@ -50,13 +50,10 @@ async def web_app_data_handler(message: types.Message, state: FSMContext):
         )
         return
 
-    # Turini aniqlash va yo'naltirish
-    data_type = data.get('type', '')
-
-    if data_type == 'presentation':
+    # Prezentatsiya yoki Mustaqil ish?
+    if data.get('type') == 'presentation':
         await _handle_presentation_web_data(message, data)
         return
-
 
     topic = data.get('topic', 'Mavzusiz')
     page_count = int(data.get('page_count', 12))
@@ -107,10 +104,14 @@ async def web_app_data_handler(message: types.Message, state: FSMContext):
         # ---------------------------------------------------------
         ai_generator = CourseWorkGenerator(api_key=OPENAI_API_KEY)
 
+        subject = data.get('subject_name', '').strip()
+        if not subject:
+            subject = topic.split()[0] if topic.split() else "Umumiy"
+
         content_json = await ai_generator.generate_course_work_content(
             work_type=data.get('work_type', 'referat'),
             topic=topic,
-            subject=data.get('subject_name', ''),
+            subject=subject,
             details=data.get('details', ''),
             page_count=int(data.get('page_count', 12)),
             language=data.get('language', 'uz')
@@ -266,9 +267,11 @@ async def _handle_presentation_web_data(message: types.Message, data: dict):
             amount_charged = total_price
 
         task_uuid = str(uuid.uuid4())
+        language = data.get('language', 'uz')
         content_data = {
             'topic': topic, 'details': details,
-            'slide_count': slide_count, 'theme_id': theme_id
+            'slide_count': slide_count, 'theme_id': theme_id,
+            'language': language
         }
 
         task_id = user_db.create_presentation_task(
