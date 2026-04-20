@@ -34,12 +34,17 @@ class BiznesPlanAdminStates(StatesGroup):
 
 
 class BiznesPlanUserStates(StatesGroup):
-    waiting_business_name = State()
-    waiting_industry = State()
-    waiting_description = State()
-    waiting_investment = State()
-    waiting_target_market = State()
-    waiting_language = State()
+    waiting_initiator_type = State()   # 1. Jismoniy / Tadbirkorlik
+    waiting_company_info = State()     # 2. Korxona nomi (faqat tadbirkorlik uchun)
+    waiting_personal_info = State()    # 3. F.I.Sh va telefon
+    waiting_location = State()         # 4. Hudud
+    waiting_project_info = State()     # 5. Loyiha nomi va maqsadi
+    waiting_product_service = State()  # 6. Mahsulot/xizmat
+    waiting_expenses = State()         # 7. Xarajatlar
+    waiting_financing = State()        # 8. Moliyalashtirish
+    waiting_credit_terms = State()     # 9. Kredit shartlari
+    waiting_marketing = State()        # 10. Marketing
+    waiting_language = State()         # 11. Til tanlash
 
 
 # ==================== KATEGORIYALAR ====================
@@ -313,12 +318,21 @@ async def back_to_bp_main(call: types.CallbackQuery):
 # AI GENERATSIYA — USER FLOW
 # ==============================================================================
 
+def _initiator_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton("👤 Jismoniy shaxs"), KeyboardButton("🏢 Tadbirkorlik subyekti")],
+            [KeyboardButton("❌ Bekor qilish")],
+        ],
+        resize_keyboard=True
+    )
+
+
 @dp.callback_query_handler(lambda c: c.data == "bp:ai_generate")
 async def start_ai_generate(call: types.CallbackQuery, state: FSMContext):
     await call.answer()
     await call.message.delete()
 
-    # Narxni olish
     price = user_db.get_price('biznes_plan_ai') or 25000
     balance = user_db.get_user_balance(call.from_user.id)
 
@@ -334,11 +348,12 @@ async def start_ai_generate(call: types.CallbackQuery, state: FSMContext):
         f"✅ va boshqa 6 bo'lim\n\n"
         f"💰 Narxi: <b>{price:,.0f} so'm</b>\n"
         f"💳 Balansingiz: <b>{balance:,.0f} so'm</b>\n\n"
-        f"📝 Biznes nomingizni kiriting:",
+        f"🔹 <b>1/10 — Tashabbuskor turi</b>\n"
+        f"Siz kim sifatida ro'yxatdan o'tasiz?",
         parse_mode='HTML',
-        reply_markup=_cancel_keyboard()
+        reply_markup=_initiator_keyboard()
     )
-    await BiznesPlanUserStates.waiting_business_name.set()
+    await BiznesPlanUserStates.waiting_initiator_type.set()
 
 
 @dp.message_handler(text="❌ Bekor qilish", state=BiznesPlanUserStates)
@@ -350,53 +365,142 @@ async def cancel_ai_generation(message: types.Message, state: FSMContext):
     )
 
 
-@dp.message_handler(state=BiznesPlanUserStates.waiting_business_name)
-async def get_business_name(message: types.Message, state: FSMContext):
-    await state.update_data(business_name=message.text.strip())
+@dp.message_handler(
+    lambda m: m.text in ("👤 Jismoniy shaxs", "🏢 Tadbirkorlik subyekti"),
+    state=BiznesPlanUserStates.waiting_initiator_type
+)
+async def get_initiator_type(message: types.Message, state: FSMContext):
+    initiator = message.text.strip()
+    await state.update_data(initiator_type=initiator)
+
+    if initiator == "🏢 Tadbirkorlik subyekti":
+        await message.answer(
+            "🔹 <b>2/10 — Korxona ma'lumoti</b>\n\n"
+            "Korxona nomi va faoliyat turini kiriting\n"
+            "<i>Masalan: «Nur Savdo» MChJ — oziq-ovqat savdosi</i>",
+            parse_mode='HTML',
+            reply_markup=_cancel_keyboard()
+        )
+        await BiznesPlanUserStates.waiting_company_info.set()
+    else:
+        await state.update_data(company_info="")
+        await message.answer(
+            "🔹 <b>2/10 — Shaxsiy ma'lumot</b>\n\n"
+            "F.I.Sh va telefon raqamingizni kiriting\n"
+            "<i>Masalan: Aliyev Jasur Bahodir o'g'li, +998901234567</i>",
+            parse_mode='HTML',
+            reply_markup=_cancel_keyboard()
+        )
+        await BiznesPlanUserStates.waiting_personal_info.set()
+
+
+@dp.message_handler(state=BiznesPlanUserStates.waiting_company_info)
+async def get_company_info(message: types.Message, state: FSMContext):
+    await state.update_data(company_info=message.text.strip())
     await message.answer(
-        "🏭 <b>Soha va faoliyat turi</b>\n\nMasalan: IT startap, Qishloq xo'jaligi, Restoran, Online do'kon...",
+        "🔹 <b>3/10 — Shaxsiy ma'lumot</b>\n\n"
+        "F.I.Sh va telefon raqamingizni kiriting\n"
+        "<i>Masalan: Aliyev Jasur Bahodir o'g'li, +998901234567</i>",
         parse_mode='HTML',
         reply_markup=_cancel_keyboard()
     )
-    await BiznesPlanUserStates.waiting_industry.set()
+    await BiznesPlanUserStates.waiting_personal_info.set()
 
 
-@dp.message_handler(state=BiznesPlanUserStates.waiting_industry)
-async def get_industry(message: types.Message, state: FSMContext):
-    await state.update_data(industry=message.text.strip())
+@dp.message_handler(state=BiznesPlanUserStates.waiting_personal_info)
+async def get_personal_info(message: types.Message, state: FSMContext):
+    await state.update_data(personal_info=message.text.strip())
     await message.answer(
-        "📝 <b>Biznesingizni qisqacha tasvirlab bering</b>\n\nNima sotasiz/xizmat ko'rsatasiz? Qanday muammoni hal qilasiz?",
+        "🔹 <b>4/10 — Hudud</b>\n\n"
+        "Loyihangiz qaysi hududda amalga oshiriladi?\n"
+        "<i>Masalan: Toshkent shahri, Samarqand viloyati Urgut tumani</i>",
         parse_mode='HTML',
         reply_markup=_cancel_keyboard()
     )
-    await BiznesPlanUserStates.waiting_description.set()
+    await BiznesPlanUserStates.waiting_location.set()
 
 
-@dp.message_handler(state=BiznesPlanUserStates.waiting_description)
-async def get_description(message: types.Message, state: FSMContext):
-    await state.update_data(description=message.text.strip())
+@dp.message_handler(state=BiznesPlanUserStates.waiting_location)
+async def get_location(message: types.Message, state: FSMContext):
+    await state.update_data(location=message.text.strip())
     await message.answer(
-        "💰 <b>Investitsiya hajmi</b>\n\nMasalan: 50,000,000 so'm, $10,000, 500 ming so'm...",
+        "🔹 <b>5/10 — Loyiha haqida</b>\n\n"
+        "Loyiha nomi va maqsadini qisqacha yozing\n"
+        "<i>Masalan: «FreshMart» — mahallada arzon va sifatli oziq-ovqat do'koni ochish</i>",
         parse_mode='HTML',
         reply_markup=_cancel_keyboard()
     )
-    await BiznesPlanUserStates.waiting_investment.set()
+    await BiznesPlanUserStates.waiting_project_info.set()
 
 
-@dp.message_handler(state=BiznesPlanUserStates.waiting_investment)
-async def get_investment(message: types.Message, state: FSMContext):
-    await state.update_data(investment=message.text.strip())
+@dp.message_handler(state=BiznesPlanUserStates.waiting_project_info)
+async def get_project_info(message: types.Message, state: FSMContext):
+    await state.update_data(project_info=message.text.strip())
     await message.answer(
-        "🎯 <b>Maqsadli bozor va auditoriya</b>\n\nKimlarga xizmat ko'rsatasiz? Qaysi hududda?",
+        "🔹 <b>6/10 — Mahsulot / xizmat</b>\n\n"
+        "Qanday mahsulot yoki xizmat taklif qilasiz?\n"
+        "<i>Masalan: kundalik oziq-ovqat mahsulotlari: non, sut, sabzavot, meva</i>",
         parse_mode='HTML',
         reply_markup=_cancel_keyboard()
     )
-    await BiznesPlanUserStates.waiting_target_market.set()
+    await BiznesPlanUserStates.waiting_product_service.set()
 
 
-@dp.message_handler(state=BiznesPlanUserStates.waiting_target_market)
-async def get_target_market(message: types.Message, state: FSMContext):
-    await state.update_data(target_market=message.text.strip())
+@dp.message_handler(state=BiznesPlanUserStates.waiting_product_service)
+async def get_product_service(message: types.Message, state: FSMContext):
+    await state.update_data(product_service=message.text.strip())
+    await message.answer(
+        "🔹 <b>7/10 — Xarajatlar</b>\n\n"
+        "Qanday uskunalar/tovarlar olinadi va jami qiymati qancha?\n"
+        "<i>Masalan: sovutgich 8 mln, javonlar 3 mln, kassa apparati 2 mln — jami 13 mln so'm</i>",
+        parse_mode='HTML',
+        reply_markup=_cancel_keyboard()
+    )
+    await BiznesPlanUserStates.waiting_expenses.set()
+
+
+@dp.message_handler(state=BiznesPlanUserStates.waiting_expenses)
+async def get_expenses(message: types.Message, state: FSMContext):
+    await state.update_data(expenses=message.text.strip())
+    await message.answer(
+        "🔹 <b>8/10 — Moliyalashtirish</b>\n\n"
+        "O'z mablag'ingiz va kerakli kredit summasini yozing\n"
+        "<i>Masalan: o'z mablag'im 5 mln so'm, kredit 10 mln so'm kerak</i>",
+        parse_mode='HTML',
+        reply_markup=_cancel_keyboard()
+    )
+    await BiznesPlanUserStates.waiting_financing.set()
+
+
+@dp.message_handler(state=BiznesPlanUserStates.waiting_financing)
+async def get_financing(message: types.Message, state: FSMContext):
+    await state.update_data(financing=message.text.strip())
+    await message.answer(
+        "🔹 <b>9/10 — Kredit shartlari</b>\n\n"
+        "Kredit foizi (%) va muddati (necha yil)?\n"
+        "<i>Masalan: 18% yillik, 3 yil muddatga</i>",
+        parse_mode='HTML',
+        reply_markup=_cancel_keyboard()
+    )
+    await BiznesPlanUserStates.waiting_credit_terms.set()
+
+
+@dp.message_handler(state=BiznesPlanUserStates.waiting_credit_terms)
+async def get_credit_terms(message: types.Message, state: FSMContext):
+    await state.update_data(credit_terms=message.text.strip())
+    await message.answer(
+        "🔹 <b>10/10 — Marketing</b>\n\n"
+        "Mijozlarni qanday topasiz? (reklama/sotuv usuli)\n"
+        "<i>Masalan: ijtimoiy tarmoqlar, mahalla e'lonlari, og'zaki tavsiya</i>",
+        parse_mode='HTML',
+        reply_markup=_cancel_keyboard()
+    )
+    await BiznesPlanUserStates.waiting_marketing.set()
+
+
+@dp.message_handler(state=BiznesPlanUserStates.waiting_marketing)
+async def get_marketing(message: types.Message, state: FSMContext):
+    await state.update_data(marketing=message.text.strip())
 
     kb = InlineKeyboardMarkup(row_width=3)
     kb.add(
@@ -405,7 +509,8 @@ async def get_target_market(message: types.Message, state: FSMContext):
         InlineKeyboardButton("🇬🇧 English", callback_data="bp_lang:en"),
     )
     await message.answer(
-        "🌐 <b>Biznes reja tilini tanlang:</b>",
+        "✅ <b>Ma'lumotlar qabul qilindi!</b>\n\n"
+        "🌐 Biznes reja tilini tanlang:",
         parse_mode='HTML',
         reply_markup=kb
     )
@@ -422,7 +527,6 @@ async def start_generation(call: types.CallbackQuery, state: FSMContext):
     telegram_id = call.from_user.id
     await state.finish()
 
-    # Narx va balans
     price = user_db.get_price('biznes_plan_ai') or 25000
     balance = user_db.get_user_balance(telegram_id)
 
@@ -438,7 +542,6 @@ async def start_generation(call: types.CallbackQuery, state: FSMContext):
         )
         return
 
-    # To'lov
     success = user_db.deduct_from_balance(telegram_id, price)
     if not success:
         await call.message.edit_text("❌ To'lovda xatolik!")
@@ -448,22 +551,21 @@ async def start_generation(call: types.CallbackQuery, state: FSMContext):
         telegram_id=telegram_id,
         transaction_type='withdrawal',
         amount=price,
-        description=f"AI Biznes Reja: {data.get('business_name', '')}",
+        description=f"AI Biznes Reja: {data.get('project_info', '')}",
         status='approved'
     )
 
     lang_names = {"uz": "O'zbek", "ru": "Rus", "en": "Ingliz"}
     status_msg = await call.message.edit_text(
         f"✅ <b>To'lov qabul qilindi! Generatsiya boshlandi...</b>\n\n"
-        f"🏢 Biznes: {data.get('business_name', '')}\n"
-        f"🏭 Soha: {data.get('industry', '')}\n"
+        f"📋 Loyiha: {data.get('project_info', '')[:60]}\n"
+        f"📍 Hudud: {data.get('location', '')}\n"
         f"🌐 Til: {lang_names.get(language, 'Uzbek')}\n\n"
         f"⏳ <b>10-15 daqiqa vaqt ketadi</b>\n"
         f"<i>AI 10 bo'limni alohida yozadi — sifat uchun...</i>",
         parse_mode='HTML'
     )
 
-    # Async generatsiya
     asyncio.create_task(
         _run_ai_generation(
             telegram_id=telegram_id,
@@ -499,12 +601,17 @@ async def _run_ai_generation(
             pass
 
         content = await generator.generate(
-            business_name=data.get('business_name', ''),
-            industry=data.get('industry', ''),
-            description=data.get('description', ''),
-            investment=data.get('investment', ''),
-            target_market=data.get('target_market', ''),
             language=language,
+            initiator_type=data.get('initiator_type', ''),
+            company_info=data.get('company_info', ''),
+            personal_info=data.get('personal_info', ''),
+            location=data.get('location', ''),
+            project_info=data.get('project_info', ''),
+            product_service=data.get('product_service', ''),
+            expenses=data.get('expenses', ''),
+            financing=data.get('financing', ''),
+            credit_terms=data.get('credit_terms', ''),
+            marketing=data.get('marketing', ''),
         )
 
         if not content:
@@ -528,8 +635,9 @@ async def _run_ai_generation(
             document=types.InputFile(file_path),
             caption=(
                 f"✅ <b>Biznes reja tayyor!</b>\n\n"
-                f"🏢 <b>{data.get('business_name', '')}</b>\n"
-                f"🏭 Soha: {data.get('industry', '')}\n\n"
+                f"📋 <b>{data.get('project_info', '')[:80]}</b>\n"
+                f"📍 Hudud: {data.get('location', '')}\n"
+                f"🛒 Mahsulot: {data.get('product_service', '')[:60]}\n\n"
                 f"📄 Professional format, 10 bo'lim\n"
                 f"💳 Qolgan balans: <b>{balance:,.0f} so'm</b>"
             ),

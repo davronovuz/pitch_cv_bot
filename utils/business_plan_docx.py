@@ -53,15 +53,15 @@ class BusinessPlanDocx:
             # === BO'LIMLAR ===
             sections = [
                 ("1. IJROIYA XULOSASI", content.get("executive_summary", "")),
-                ("2. KOMPANIYA TAVSIFI", content.get("company_description", "")),
+                ("2. TASHABBUSKOR VA KOMPANIYA TAVSIFI", content.get("company_description", "")),
                 ("3. BOZOR TAHLILI", content.get("market_analysis", "")),
-                ("4. MAHSULOT VA XIZMATLAR", content.get("product_service", "")),
+                ("4. MAHSULOT VA XIZMATLAR", content.get("product_service_section") or content.get("product_service", "")),
                 ("5. MARKETING VA SAVDO STRATEGIYASI", content.get("marketing_strategy", "")),
                 ("6. OPERATSION REJA", content.get("operations_plan", "")),
                 ("7. MOLIYAVIY PROGNOZ", content.get("financial_projections", "")),
-                ("8. BOSHQARUV JAMOASI", content.get("team_section", "")),
+                ("8. BOSHQARUV JAMOASI VA KADRLAR", content.get("team_section", "")),
                 ("9. RISK TAHLILI VA BOSHQARUV", content.get("risk_analysis", "")),
-                ("10. XULOSA VA INVESTORGA MUROJAAT", content.get("conclusion", "")),
+                ("10. XULOSA VA INVESTOR/BANKGA MUROJAAT", content.get("conclusion", "")),
             ]
 
             for section_title, section_text in sections:
@@ -161,21 +161,26 @@ class BusinessPlanDocx:
         doc.add_paragraph()
         doc.add_paragraph()
 
-        # Qo'shimcha ma'lumotlar
-        investment = content.get("investment", "")
-        target_market = content.get("target_market", "")
+        # Qo'shimcha ma'lumotlar (paspart asosida)
+        location = content.get("location") or content.get("target_market", "")
+        financing = content.get("financing") or content.get("investment", "")
+        initiator_type = content.get("initiator_type", "")
+        company_info = content.get("company_info", "")
 
-        if investment:
+        info_rows = []
+        if location:
+            info_rows.append(("Hudud", location))
+        if initiator_type:
+            info_rows.append(("Tashabbuskor turi", initiator_type))
+        if company_info:
+            info_rows.append(("Korxona", company_info))
+        if financing:
+            info_rows.append(("Moliyalashtirish", financing))
+
+        for label, value in info_rows:
             p = doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(f"Investitsiya hajmi: {investment}")
-            run.font.size = Pt(12)
-            run.font.color.rgb = COLOR_DARK
-
-        if target_market:
-            p = doc.add_paragraph()
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(f"Maqsadli bozor: {target_market}")
+            run = p.add_run(f"{label}: {value}")
             run.font.size = Pt(12)
             run.font.color.rgb = COLOR_DARK
 
@@ -211,15 +216,15 @@ class BusinessPlanDocx:
 
         toc_items = [
             ("1. Ijroiya Xulosasi", "3"),
-            ("2. Kompaniya Tavsifi", "4"),
-            ("3. Bozor Tahlili", "5"),
-            ("4. Mahsulot va Xizmatlar", "7"),
-            ("5. Marketing va Savdo Strategiyasi", "8"),
-            ("6. Operatsion Reja", "10"),
-            ("7. Moliyaviy Prognoz", "11"),
-            ("8. Boshqaruv Jamoasi", "13"),
-            ("9. Risk Tahlili va Boshqaruv", "14"),
-            ("10. Xulosa va Investorga Murojaat", "15"),
+            ("2. Tashabbuskor va Kompaniya Tavsifi", "4"),
+            ("3. Bozor Tahlili", "6"),
+            ("4. Mahsulot va Xizmatlar", "8"),
+            ("5. Marketing va Savdo Strategiyasi", "10"),
+            ("6. Operatsion Reja", "12"),
+            ("7. Moliyaviy Prognoz", "14"),
+            ("8. Boshqaruv Jamoasi va Kadrlar", "17"),
+            ("9. Risk Tahlili va Boshqaruv", "19"),
+            ("10. Xulosa va Investor/Bankga Murojaat", "21"),
         ]
 
         for title, page in toc_items:
