@@ -561,8 +561,9 @@ async def start_generation(call: types.CallbackQuery, state: FSMContext):
         f"📋 Loyiha: {data.get('project_info', '')[:60]}\n"
         f"📍 Hudud: {data.get('location', '')}\n"
         f"🌐 Til: {lang_names.get(language, 'Uzbek')}\n\n"
-        f"⏳ <b>10-15 daqiqa vaqt ketadi</b>\n"
-        f"<i>AI 10 bo'limni alohida yozadi — sifat uchun...</i>",
+        f"⏳ <b>Taxminiy vaqt: 10-15 daqiqa</b>\n"
+        f"<i>AI jami 10 bo'limni alohida yozadi — sifat uchun.\n"
+        f"Quyida har bir bosqich haqida xabar beriladi.</i>",
         parse_mode='HTML'
     )
 
@@ -591,14 +592,58 @@ async def _run_ai_generation(
     try:
         generator = BusinessPlanGenerator(api_key=OPENAI_API_KEY)
 
-        # Progress update
-        try:
-            await status_msg.edit_text(
-                status_msg.text + "\n\n📊 <i>1/10: Ijroiya xulosa...</i>",
-                parse_mode='HTML'
+        lang_names = {"uz": "O'zbek", "ru": "Rus", "en": "Ingliz"}
+        header = (
+            f"🤖 <b>Biznes reja tayyorlanmoqda...</b>\n\n"
+            f"📋 Loyiha: {data.get('project_info', '')[:60]}\n"
+            f"📍 Hudud: {data.get('location', '')}\n"
+            f"🌐 Til: {lang_names.get(language, 'Uzbek')}\n"
+        )
+
+        # O'rtacha har bir bo'lim ~75 sekundda tayyor bo'ladi
+        SECONDS_PER_STEP = 75
+
+        async def progress_cb(step: int, total: int, title: str):
+            done = step - 1
+            percent = int(done / total * 100)
+            filled = done * 2  # 20 ta katak (total * 2)
+            bar = "▓" * filled + "░" * (total * 2 - filled)
+            remaining_steps = total - done
+            remaining_min = max(1, (remaining_steps * SECONDS_PER_STEP) // 60)
+
+            # Oldingi tayyor bo'limlar ro'yxati (belgilangan)
+            sections_list = [
+                "Ijroiya xulosasi",
+                "Tashabbuskor va kompaniya tavsifi",
+                "Bozor tahlili",
+                "Mahsulot va xizmatlar",
+                "Marketing va savdo strategiyasi",
+                "Operatsion reja",
+                "Moliyaviy prognoz",
+                "Boshqaruv jamoasi",
+                "Risk tahlili",
+                "Xulosa",
+            ]
+            lines = []
+            for i, name in enumerate(sections_list, start=1):
+                if i < step:
+                    lines.append(f"✅ {i}/10 — {name}")
+                elif i == step:
+                    lines.append(f"⏳ <b>{i}/10 — {name}</b> (yozilmoqda...)")
+                else:
+                    lines.append(f"⚪️ {i}/10 — {name}")
+            progress_list = "\n".join(lines)
+
+            text = (
+                f"{header}\n"
+                f"📊 <b>Jarayon: {percent}%</b>  [{bar}]\n"
+                f"⏱ <i>Taxminan {remaining_min} daqiqa qoldi</i>\n\n"
+                f"{progress_list}"
             )
-        except Exception:
-            pass
+            try:
+                await status_msg.edit_text(text, parse_mode='HTML')
+            except Exception as e:
+                logger.debug(f"Progress edit xato: {e}")
 
         content = await generator.generate(
             language=language,
@@ -612,14 +657,29 @@ async def _run_ai_generation(
             financing=data.get('financing', ''),
             credit_terms=data.get('credit_terms', ''),
             marketing=data.get('marketing', ''),
+            progress_callback=progress_cb,
         )
 
         if not content:
             raise ValueError("Generator None qaytardi")
 
+        # Yakuniy bosqich — DOCX yig'ilmoqda
+        try:
+            await status_msg.edit_text(
+                f"{header}\n"
+                f"📊 <b>Jarayon: 100%</b>  [{'▓' * 20}]\n"
+                f"⏱ <i>Deyarli tayyor — bir necha soniya...</i>\n\n"
+                f"✅ Barcha 10 bo'lim yozildi\n"
+                f"📄 <b>DOCX hujjat yig'ilmoqda va sizga yuborilmoqda...</b>",
+                parse_mode='HTML'
+            )
+        except Exception:
+            pass
+
         # DOCX yaratish
         os.makedirs(DOWNLOADS_DIR, exist_ok=True)
-        safe_name = "".join(c for c in data.get('business_name', 'biznes') if c.isalnum() or c in ' _-')[:20].strip()
+        safe_name_src = data.get('project_info') or data.get('business_name') or 'biznes'
+        safe_name = "".join(c for c in safe_name_src if c.isalnum() or c in ' _-')[:20].strip() or 'biznes'
         filename = f"BiznesPlan_{safe_name}_{telegram_id}.docx"
         file_path = os.path.join(DOWNLOADS_DIR, filename)
 

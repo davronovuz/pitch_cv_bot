@@ -3,8 +3,10 @@
 
 import asyncio
 import logging
-from typing import Dict, Optional
+from typing import Awaitable, Callable, Dict, Optional
 from openai import AsyncOpenAI
+
+ProgressCallback = Callable[[int, int, str], Awaitable[None]]
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,7 @@ class BusinessPlanGenerator:
             financing: str = "",
             credit_terms: str = "",
             marketing: str = "",
+            progress_callback: Optional[ProgressCallback] = None,
     ) -> Optional[Dict]:
         """
         To'liq professional biznes plan yaratish.
@@ -81,9 +84,19 @@ class BusinessPlanGenerator:
 
         logger.info(f"Biznes plan generatsiya boshlandi: {project_info or business_name}")
 
+        total_steps = 10
+
+        async def _notify(step: int, title: str):
+            if progress_callback:
+                try:
+                    await progress_callback(step, total_steps, title)
+                except Exception as e:
+                    logger.warning(f"Progress callback xato: {e}")
+
         try:
             # Step 1: Executive Summary
             logger.info("Step 1: Ijroiya xulosasi...")
+            await _notify(1, "Ijroiya xulosasi")
             executive_summary = await self._generate_section(
                 section="IJROIYA XULOSASI (EXECUTIVE SUMMARY)",
                 instructions=(
@@ -106,6 +119,7 @@ class BusinessPlanGenerator:
 
             # Step 2: Company / Initiator Description
             logger.info("Step 2: Tashabbuskor va kompaniya tavsifi...")
+            await _notify(2, "Tashabbuskor va kompaniya tavsifi")
             company_description = await self._generate_section(
                 section="TASHABBUSKOR VA KOMPANIYA TAVSIFI",
                 instructions=(
@@ -128,6 +142,7 @@ class BusinessPlanGenerator:
 
             # Step 3: Market Analysis
             logger.info("Step 3: Bozor tahlili...")
+            await _notify(3, "Bozor tahlili")
             market_analysis = await self._generate_section(
                 section="BOZOR TAHLILI",
                 instructions=(
@@ -150,6 +165,7 @@ class BusinessPlanGenerator:
 
             # Step 4: Product/Service
             logger.info("Step 4: Mahsulot va xizmatlar...")
+            await _notify(4, "Mahsulot va xizmatlar")
             product_service_sec = await self._generate_section(
                 section="MAHSULOT VA XIZMATLAR",
                 instructions=(
@@ -171,6 +187,7 @@ class BusinessPlanGenerator:
 
             # Step 5: Marketing Strategy
             logger.info("Step 5: Marketing strategiyasi...")
+            await _notify(5, "Marketing va savdo strategiyasi")
             marketing_strategy = await self._generate_section(
                 section="MARKETING VA SAVDO STRATEGIYASI",
                 instructions=(
@@ -194,6 +211,7 @@ class BusinessPlanGenerator:
 
             # Step 6: Operations Plan
             logger.info("Step 6: Operatsion reja...")
+            await _notify(6, "Operatsion reja")
             operations_plan = await self._generate_section(
                 section="OPERATSION REJA",
                 instructions=(
@@ -216,6 +234,7 @@ class BusinessPlanGenerator:
 
             # Step 7: Financial Projections — MUHIM BO'LIM
             logger.info("Step 7: Moliyaviy prognoz...")
+            await _notify(7, "Moliyaviy prognoz (kredit grafigi, P&L, Cash Flow)")
             financial_projections = await self._generate_section(
                 section="MOLIYAVIY PROGNOZ",
                 instructions=(
@@ -256,6 +275,7 @@ class BusinessPlanGenerator:
 
             # Step 8: Team
             logger.info("Step 8: Jamoa...")
+            await _notify(8, "Boshqaruv jamoasi va kadrlar")
             team_section = await self._generate_section(
                 section="BOSHQARUV JAMOASI VA KADRLAR",
                 instructions=(
@@ -277,6 +297,7 @@ class BusinessPlanGenerator:
 
             # Step 9: Risk Analysis
             logger.info("Step 9: Risk tahlili...")
+            await _notify(9, "Risk tahlili va boshqaruv")
             risk_analysis = await self._generate_section(
                 section="RISK TAHLILI VA BOSHQARUV",
                 instructions=(
@@ -306,6 +327,7 @@ class BusinessPlanGenerator:
 
             # Step 10: Conclusion
             logger.info("Step 10: Xulosa...")
+            await _notify(10, "Xulosa va investor/bankga murojaat")
             conclusion = await self._generate_section(
                 section="XULOSA VA INVESTOR/BANKGA MUROJAAT",
                 instructions=(
