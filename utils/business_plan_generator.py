@@ -416,7 +416,7 @@ QAT'IY QOIDALAR:
         for attempt in range(3):
             try:
                 response = await self.client.chat.completions.create(
-                    model="gpt-4o",
+                    model="gpt-4o-mini",
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=3000,
                     temperature=0.6,
