@@ -31,7 +31,7 @@ class ContentGenerator:
         Returns:
             Professional pitch content (JSON)
         """
-        model = "gpt-4" if use_gpt4 else "gpt-3.5-turbo"
+        model = "gpt-4o-mini"
 
         # Avval bozor tahlilini yaratish
         market_data = await self._generate_market_analysis(
