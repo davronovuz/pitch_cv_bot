@@ -98,11 +98,11 @@ def main_menu_keyboard(telegram_id=None, user_db=None):
     ✅ Narxlar va balans URL orqali uzatiladi
     """
     if telegram_id:
-        pres_url = WEB_APP_BASE_URL + f"?type=presentation&telegram_id={telegram_id}"
-        cw_url = WEB_APP_BASE_URL + f"?telegram_id={telegram_id}"
+        pres_url = WEB_APP_BASE_URL + f"?type=presentation&source=aida&telegram_id={telegram_id}"
+        cw_url = WEB_APP_BASE_URL + f"?source=aida&telegram_id={telegram_id}"
     else:
-        pres_url = WEB_APP_BASE_URL + "?type=presentation"
-        cw_url = WEB_APP_BASE_URL
+        pres_url = WEB_APP_BASE_URL + "?type=presentation&source=aida"
+        cw_url = WEB_APP_BASE_URL + "?source=aida"
 
     if telegram_id and user_db:
         try:

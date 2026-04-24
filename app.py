@@ -1,5 +1,8 @@
 import asyncio
+import json
+import uuid
 import logging
+from aiohttp import web
 from aiogram import executor
 from environs import Env
 
@@ -25,6 +28,7 @@ from utils.presentation_worker import PresentationWorker
 # API keys
 OPENAI_API_KEY = env.str("OPENAI_API_KEY")
 PRESENTON_URL = env.str("PRESENTON_URL", "http://presenton:80")
+API_SECRET = env.str("API_SECRET", "aislide_secret_2026")
 
 # Initialize utilities
 content_generator = ContentGenerator(OPENAI_API_KEY)
@@ -35,55 +39,188 @@ import handlers.users.user_handlers
 import handlers.users.admin_panel
 
 
+# ═══════════════════════════════════════════════════
+# HTTP API — Frontend uchun (pre-generated content qabul qilish)
+# ═══════════════════════════════════════════════════
+
+async def handle_submit_presentation(request):
+    """Frontend'dan pre-generated prezentatsiya kontentini qabul qilish"""
+    try:
+        auth = request.headers.get('Authorization', '')
+        if auth != f'Bearer {API_SECRET}':
+            return web.json_response({'error': 'Unauthorized'}, status=401)
+
+        data = await request.json()
+        telegram_id = data.get('telegram_id')
+        if not telegram_id:
+            return web.json_response({'error': 'telegram_id required'}, status=400)
+
+        topic = data.get('topic', 'Mavzusiz')
+        details = data.get('details', '')
+        slide_count = int(data.get('slide_count', 10))
+        theme_id = data.get('theme_id', 'chisel')
+        language = data.get('language', 'uz')
+
+        free_left = user_db.get_free_presentations(telegram_id)
+        is_free = free_left > 0
+
+        if is_free:
+            user_db.use_free_presentation(telegram_id)
+            amount_charged = 0
+        else:
+            price_per_slide = user_db.get_price('slide_basic') or 2000.0
+            total_price = price_per_slide * slide_count
+            balance = user_db.get_user_balance(telegram_id)
+
+            if balance < total_price:
+                return web.json_response({
+                    'error': 'insufficient_balance',
+                    'required': total_price,
+                    'balance': balance
+                }, status=402)
+
+            success = user_db.deduct_from_balance(telegram_id, total_price)
+            if not success:
+                return web.json_response({'error': 'Balance deduction failed'}, status=500)
+
+            user_db.create_transaction(
+                telegram_id=telegram_id, transaction_type='withdrawal',
+                amount=total_price, description=f'Prezentatsiya ({slide_count} slayd)', status='approved'
+            )
+            amount_charged = total_price
+
+        task_uuid = str(uuid.uuid4())
+        content_data = {
+            'topic': topic, 'details': details,
+            'slide_count': slide_count, 'theme_id': theme_id,
+            'language': language
+        }
+
+        if data.get('pre_generated') and data.get('slides'):
+            content_data['pre_generated'] = True
+            content_data['title'] = data.get('title', topic)
+            content_data['subtitle'] = data.get('subtitle', '')
+            content_data['slides'] = data.get('slides', [])
+
+        task_id = user_db.create_presentation_task(
+            telegram_id=telegram_id, task_uuid=task_uuid,
+            presentation_type='basic', slide_count=slide_count,
+            answers=json.dumps(content_data, ensure_ascii=False),
+            amount_charged=amount_charged
+        )
+
+        if not task_id:
+            if not is_free and amount_charged > 0:
+                user_db.add_to_balance(telegram_id, amount_charged)
+            return web.json_response({'error': 'Task creation failed'}, status=500)
+
+        try:
+            if is_free:
+                new_free = user_db.get_free_presentations(telegram_id)
+                text = (
+                    f"🎁 <b>BEPUL prezentatsiya boshlandi!</b>\n\n"
+                    f"📊 Mavzu: {topic}\n📑 Slaydlar: {slide_count} ta\n"
+                    f"🎁 Qolgan bepul: {new_free} ta\n\n"
+                    f"⏳ <b>1-3 daqiqa</b>. Tayyor bo'lgach PPTX yuboriladi!"
+                )
+            else:
+                new_balance = user_db.get_user_balance(telegram_id)
+                text = (
+                    f"✅ <b>Prezentatsiya boshlandi!</b>\n\n"
+                    f"📊 Mavzu: {topic}\n📑 Slaydlar: {slide_count} ta\n"
+                    f"💰 Yechildi: {amount_charged:,.0f} so'm\n💳 Balans: {new_balance:,.0f} so'm\n\n"
+                    f"⏳ <b>1-3 daqiqa</b>. Tayyor bo'lgach PPTX yuboriladi!"
+                )
+            await bot.send_message(telegram_id, text, parse_mode='HTML')
+        except Exception as e:
+            logger.warning(f"Telegram xabar yuborishda xato: {e}")
+
+        logger.info(f"✅ API prezentatsiya task: {task_uuid} | User: {telegram_id} | Pre-gen: {data.get('pre_generated', False)}")
+
+        return web.json_response({
+            'ok': True,
+            'task_uuid': task_uuid,
+            'amount_charged': amount_charged,
+            'is_free': is_free
+        })
+
+    except Exception as e:
+        logger.error(f"❌ API submit xato: {e}")
+        return web.json_response({'error': str(e)}, status=500)
+
+
+async def handle_health(request):
+    return web.json_response({'status': 'ok', 'service': 'pitch_cv_bot'})
+
+
+api_runner = None
+
+async def start_api_server():
+    global api_runner
+    app = web.Application()
+    app.router.add_post('/api/submit-presentation', handle_submit_presentation)
+    app.router.add_get('/api/health', handle_health)
+
+    @web.middleware
+    async def cors_middleware(request, handler):
+        if request.method == 'OPTIONS':
+            response = web.Response()
+        else:
+            response = await handler(request)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        return response
+
+    app.middlewares.append(cors_middleware)
+
+    api_runner = web.AppRunner(app)
+    await api_runner.setup()
+    site = web.TCPSite(api_runner, '0.0.0.0', 8080)
+    await site.start()
+    logger.info("✅ HTTP API server ishga tushdi (port 8080)")
+
+
+async def stop_api_server():
+    global api_runner
+    if api_runner:
+        await api_runner.cleanup()
+        logger.info("✅ HTTP API server to'xtatildi")
+
+
 def run_migrations():
-    """
-    Database migratsiyalarni ishga tushirish
-    Yangi ustunlar qo'shish (agar mavjud bo'lmasa)
-    """
     logger.info("🔄 Database migratsiyalar tekshirilmoqda...")
 
     migrations = [
-        # free_presentations ustuni
         {
             'name': 'free_presentations',
             'table': 'Users',
             'sql': 'ALTER TABLE Users ADD COLUMN free_presentations INTEGER DEFAULT 0'
         },
-        # Kelajakda boshqa migratsiyalar qo'shish mumkin
-        # {
-        #     'name': 'new_column',
-        #     'table': 'Users',
-        #     'sql': 'ALTER TABLE Users ADD COLUMN new_column TEXT'
-        # },
     ]
 
     for migration in migrations:
         try:
-            # Ustun mavjudligini tekshirish
             check_sql = f"PRAGMA table_info({migration['table']})"
             columns = user_db.execute(check_sql, fetchall=True)
             column_names = [col[1] for col in columns]
 
             if migration['name'] not in column_names:
-                # Ustun yo'q - qo'shish
                 user_db.execute(migration['sql'], commit=True)
                 logger.info(f"✅ Migration qo'shildi: {migration['name']}")
             else:
                 logger.info(f"ℹ️ Migration mavjud: {migration['name']}")
-
         except Exception as e:
             logger.error(f"❌ Migration xato ({migration['name']}): {e}")
 
 
 async def on_startup(dispatcher):
-    """Bot ishga tushganda"""
     global presentation_worker
 
     logger.info("=" * 50)
     logger.info("🚀 BOT ISHGA TUSHMOQDA...")
     logger.info("=" * 50)
 
-    # Database jadvallarini yaratish
     try:
         user_db.create_table_users()
         user_db.create_table_transactions()
@@ -94,14 +231,12 @@ async def on_startup(dispatcher):
     except Exception as e:
         logger.error(f"❌ Database xato: {e}")
 
-    # ✅ YANGI: Migratsiyalarni ishga tushirish
     try:
         run_migrations()
         logger.info("✅ Database migratsiyalar tayyor")
     except Exception as e:
         logger.error(f"❌ Migration xato: {e}")
 
-    # Background worker'ni ishga tushirish
     try:
         presentation_worker = PresentationWorker(
             bot=bot,
@@ -114,25 +249,29 @@ async def on_startup(dispatcher):
     except Exception as e:
         logger.error(f"❌ Worker xato: {e}")
 
+    try:
+        await start_api_server()
+    except Exception as e:
+        logger.error(f"❌ HTTP API server xato: {e}")
+
     logger.info("=" * 50)
     logger.info("✅ BOT TAYYOR!")
     logger.info("=" * 50)
 
 
 async def on_shutdown(dispatcher):
-    """Bot to'xtaganda"""
     global presentation_worker
 
     logger.info("=" * 50)
     logger.info("⏹ BOT TO'XTATILMOQDA...")
     logger.info("=" * 50)
 
-    # Worker'ni to'xtatish
     if presentation_worker:
         await presentation_worker.stop()
         logger.info("✅ Background Worker to'xtatildi")
 
-    # Connectionlarni yopish
+    await stop_api_server()
+
     await dp.storage.close()
     await dp.storage.wait_closed()
 
@@ -142,7 +281,6 @@ async def on_shutdown(dispatcher):
 
 
 if __name__ == '__main__':
-    # Bot'ni ishga tushirish
     executor.start_polling(
         dp,
         on_startup=on_startup,

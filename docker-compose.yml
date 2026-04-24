@@ -9,6 +9,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ADMINS=${ADMINS}
       - PRESENTON_URL=http://presenton:80
+      - API_SECRET=${API_SECRET}
+    ports:
+      - "8082:8080"
     volumes:
       - ./data:/app/data
     networks:
