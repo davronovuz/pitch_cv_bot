@@ -290,7 +290,15 @@ async def finish_and_generate(message: types.Message, state: FSMContext):
         await message.answer(response_text, parse_mode='HTML')
 
     except Exception as e:
-        logger.error(f"AiDA Error: {e}")
-        await wait_msg.edit_text("⚠️ <b>Kechirasiz, texnik xatolik yuz berdi.</b>", parse_mode='HTML')
+        logger.exception(f"AiDA Error: {e}")
+        try:
+            await wait_msg.delete()
+        except Exception:
+            pass
+        await message.answer(
+            "⚠️ <b>Kechirasiz, texnik xatolik yuz berdi.</b>\nIltimos, keyinroq qayta urinib ko'ring.",
+            reply_markup=main_menu_keyboard(),
+            parse_mode='HTML'
+        )
 
     await state.finish()

@@ -204,6 +204,103 @@ REMEMBER: All text MUST be {lang_instruction}. Only image_keywords in English.""
             logger.error(f"OpenAI xato: {e}")
             return self._generate_fallback_presentation_content(topic, details, slide_count)
 
+    async def generate_mahalla_analysis(self, user_data: Dict) -> Dict:
+        """Mahalla biznes tahlili — qisqa xulosa va TOP 3 biznes g'oya"""
+        model = "gpt-4o-mini"
+
+        mahalla = user_data.get('mahalla_nomi', '')
+        aholi = user_data.get('aholi_soni', '')
+        yoshlar = user_data.get('yoshlar_soni', '')
+        ayollar = user_data.get('ayollar_soni', '')
+        maktablar = user_data.get('maktablar', '')
+        bogchalar = user_data.get('bogchalar', '')
+        tadbirkorlik = user_data.get('tadbirkorlik_turi', '') or user_data.get('tadbirkorlik_boshqa', '')
+        xarid = user_data.get('xarid_qobiliyati', '')
+        yol = user_data.get('yol_yaqinligi', '')
+        hudud = user_data.get('hudud_turi', '')
+        turizm = user_data.get('turizm', '')
+        turizm_batafsil = user_data.get('turizm_batafsil', '')
+        ehtiyojlar = user_data.get('ehtiyojlar', '')
+
+        prompt = f"""
+Siz O'zbekiston mahallalari uchun biznes tahlili mutaxassisisiz. Quyidagi mahalla ma'lumotlari asosida real va amaliy biznes tavsiyalarini bering.
+
+MAHALLA MA'LUMOTLARI:
+- Mahalla nomi: {mahalla}
+- Aholi soni: {aholi}
+- Yoshlar soni: {yoshlar}
+- Ayollar soni: {ayollar}
+- Maktablar: {maktablar}
+- Bog'chalar: {bogchalar}
+- Mavjud tadbirkorlik turi: {tadbirkorlik}
+- Xarid qobiliyati: {xarid}
+- Asosiy yo'lga yaqinlik: {yol}
+- Hudud turi: {hudud}
+- Turizm obyektlari: {turizm} {turizm_batafsil}
+- Eng muhim ehtiyojlar: {ehtiyojlar}
+
+Vazifa: Mahallaga eng mos keladigan TOP 3 ta biznes g'oyasini tanlang. Har biri uchun: nomi, nima uchun mos kelishi (sabab), boshlang'ich investitsiya (so'mda yoki dollarda), oylik kutilayotgan foyda darajasi.
+
+JSON formatda qaytaring:
+{{
+  "summary": "Mahalla haqida 3-4 jumlalik qisqa xulosa va biznes imkoniyatlari",
+  "top_businesses": [
+    {{
+      "name": "Biznes nomi",
+      "reason": "Nima uchun bu mahalla uchun mos (1-2 jumla)",
+      "investment": "Boshlang'ich investitsiya (masalan: 30-50 mln so'm)",
+      "profitability": "Oylik foyda darajasi (masalan: 8-15 mln so'm)"
+    }},
+    {{...}},
+    {{...}}
+  ]
+}}
+
+Faqat O'zbek tilida, real va amaliy bo'lsin.
+"""
+
+        try:
+            logger.info(f"OpenAI: Mahalla tahlili boshlandi (model: {model})")
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "Siz O'zbekiston mahallalari uchun tajribali biznes tahlili mutaxassisisiz."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            content = json.loads(response.choices[0].message.content)
+            logger.info("OpenAI: Mahalla tahlili yaratildi")
+            return content
+
+        except Exception as e:
+            logger.error(f"OpenAI mahalla tahlili xato: {e}")
+            return {
+                "summary": f"{mahalla} mahallasi uchun biznes imkoniyatlari aholi soni va ehtiyojlardan kelib chiqib tahlil qilindi.",
+                "top_businesses": [
+                    {
+                        "name": "Mahalliy oziq-ovqat do'koni",
+                        "reason": "Aholining kundalik ehtiyojlarini qondiradi va doimiy talab mavjud.",
+                        "investment": "30-50 mln so'm",
+                        "profitability": "5-10 mln so'm/oy"
+                    },
+                    {
+                        "name": "Bolalar uchun o'quv markazi",
+                        "reason": "Yoshlar va maktab o'quvchilari soni ko'p — qo'shimcha ta'limga talab yuqori.",
+                        "investment": "20-40 mln so'm",
+                        "profitability": "4-8 mln so'm/oy"
+                    },
+                    {
+                        "name": "Ayollar uchun tikuvchilik sexi",
+                        "reason": "Ayollar bandligini ta'minlaydi va mahalliy talabga javob beradi.",
+                        "investment": "25-45 mln so'm",
+                        "profitability": "5-9 mln so'm/oy"
+                    }
+                ]
+            }
+
     async def _generate_market_analysis(self, project_info: str, target_audience: str, model: str) -> Dict:
         """Bozor tahlili yaratish"""
 
