@@ -1010,8 +1010,8 @@ async def balance_topup_amount(message: types.Message, state: FSMContext):
 
         await state.update_data(amount=amount)
 
-        CARD_NUMBER = "9860080147802732"
-        CARD_HOLDER = "G'olibjon  Davronov"
+        CARD_NUMBER = "4073420066945407"
+        CARD_HOLDER = "Eshonqulova Robiya"
 
         payment_text = f"""
 💳 <b>TO'LOV MA'LUMOTLARI</b>
