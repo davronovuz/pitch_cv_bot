@@ -11,6 +11,7 @@ from environs import Env
 env = Env()
 env.read_env()
 from utils.content_generator import ContentGenerator
+from utils.mahalla_validators import parse_number, is_meaningful
 
 OPENAI_API_KEY = env.str("OPENAI_API_KEY")
 
@@ -130,42 +131,78 @@ async def cancel_mahalla(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=MahallaStates.mahalla_nomi)
 async def q2_aholi(message: types.Message, state: FSMContext):
-    await state.update_data(mahalla_nomi=message.text)
+    if not is_meaningful(message.text, min_len=2):
+        await message.answer(
+            "⚠️ <b>Iltimos, mahallaning haqiqiy nomini kiriting.</b>\n"
+            "Masalan: <i>Chorbog', Yangiobod, Mustaqillik...</i>",
+            reply_markup=cancel_keyboard(), parse_mode='HTML')
+        return
+    await state.update_data(mahalla_nomi=message.text.strip())
     await message.answer("2️⃣ <b>Aholi soni nechta?</b> (taxminan)", reply_markup=cancel_keyboard(), parse_mode='HTML')
     await MahallaStates.aholi_soni.set()
 
 
 @dp.message_handler(state=MahallaStates.aholi_soni)
 async def q3_yoshlar(message: types.Message, state: FSMContext):
-    await state.update_data(aholi_soni=message.text)
+    aholi = parse_number(message.text, min_val=1, max_val=5_000_000)
+    if aholi is None:
+        await message.answer(
+            "⚠️ <b>Aholi sonini raqam bilan kiriting.</b>\nMasalan: <i>5000</i>",
+            reply_markup=cancel_keyboard(), parse_mode='HTML')
+        return
+    await state.update_data(aholi_soni=aholi)
     await message.answer("3️⃣ <b>Yoshlar soni (14–30 yosh):</b>", reply_markup=cancel_keyboard(), parse_mode='HTML')
     await MahallaStates.yoshlar_soni.set()
 
 
 @dp.message_handler(state=MahallaStates.yoshlar_soni)
 async def q4_ayollar(message: types.Message, state: FSMContext):
-    await state.update_data(yoshlar_soni=message.text)
+    yoshlar = parse_number(message.text, min_val=0, max_val=5_000_000)
+    if yoshlar is None:
+        await message.answer(
+            "⚠️ <b>Yoshlar sonini raqam bilan kiriting.</b>\nMasalan: <i>1200</i>",
+            reply_markup=cancel_keyboard(), parse_mode='HTML')
+        return
+    await state.update_data(yoshlar_soni=yoshlar)
     await message.answer("4️⃣ <b>Xotin-qizlar soni:</b>", reply_markup=cancel_keyboard(), parse_mode='HTML')
     await MahallaStates.ayollar_soni.set()
 
 
 @dp.message_handler(state=MahallaStates.ayollar_soni)
 async def q5_maktab(message: types.Message, state: FSMContext):
-    await state.update_data(ayollar_soni=message.text)
+    ayollar = parse_number(message.text, min_val=0, max_val=5_000_000)
+    if ayollar is None:
+        await message.answer(
+            "⚠️ <b>Xotin-qizlar sonini raqam bilan kiriting.</b>\nMasalan: <i>2500</i>",
+            reply_markup=cancel_keyboard(), parse_mode='HTML')
+        return
+    await state.update_data(ayollar_soni=ayollar)
     await message.answer("5️⃣ <b>Maktablar soni nechta?</b>", reply_markup=cancel_keyboard(), parse_mode='HTML')
     await MahallaStates.maktablar.set()
 
 
 @dp.message_handler(state=MahallaStates.maktablar)
 async def q6_bogcha(message: types.Message, state: FSMContext):
-    await state.update_data(maktablar=message.text)
+    maktablar = parse_number(message.text, min_val=0, max_val=2000)
+    if maktablar is None:
+        await message.answer(
+            "⚠️ <b>Maktablar sonini raqam bilan kiriting.</b>\nMasalan: <i>3</i>",
+            reply_markup=cancel_keyboard(), parse_mode='HTML')
+        return
+    await state.update_data(maktablar=maktablar)
     await message.answer("6️⃣ <b>Bog'chalar (MTT) soni nechta?</b>", reply_markup=cancel_keyboard(), parse_mode='HTML')
     await MahallaStates.bogchalar.set()
 
 
 @dp.message_handler(state=MahallaStates.bogchalar)
 async def q7_tadbirkorlik(message: types.Message, state: FSMContext):
-    await state.update_data(bogchalar=message.text)
+    bogchalar = parse_number(message.text, min_val=0, max_val=2000)
+    if bogchalar is None:
+        await message.answer(
+            "⚠️ <b>Bog'chalar sonini raqam bilan kiriting.</b>\nMasalan: <i>2</i>",
+            reply_markup=cancel_keyboard(), parse_mode='HTML')
+        return
+    await state.update_data(bogchalar=bogchalar)
     await message.answer("7️⃣ <b>Mahallada eng ko'p uchraydigan tadbirkorlik turi?</b>", reply_markup=kb_tadbirkorlik(),
                          parse_mode='HTML')
     await MahallaStates.tadbirkorlik_turi.set()
@@ -244,7 +281,13 @@ async def q11_custom(message: types.Message, state: FSMContext):
 @dp.message_handler(state=MahallaStates.ehtiyojlar)
 async def finish_and_generate(message: types.Message, state: FSMContext):
     from keyboards.default.default_keyboard import main_menu_keyboard
-    await state.update_data(ehtiyojlar=message.text)
+    if not is_meaningful(message.text, min_len=3):
+        await message.answer(
+            "⚠️ <b>Iltimos, mahallaning ehtiyojlarini tushunarli yozing.</b>\n"
+            "Masalan: <i>bozorcha, dorixona, o'quv markazi, sport zali...</i>",
+            reply_markup=cancel_keyboard(), parse_mode='HTML')
+        return
+    await state.update_data(ehtiyojlar=message.text.strip())
     user_data = await state.get_data()
 
     wait_msg = await message.answer(

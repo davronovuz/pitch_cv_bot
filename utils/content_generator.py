@@ -241,22 +241,28 @@ MAHALLA MA'LUMOTLARI:
 
 Vazifa: Mahallaga eng mos keladigan TOP 3 ta biznes g'oyasini tanlang. Har biri uchun: nomi, nima uchun mos kelishi (sabab), boshlang'ich investitsiya (so'mda yoki dollarda), oylik kutilayotgan foyda darajasi.
 
+MUHIM QOIDALAR (halollik):
+- Faqat yuqorida berilgan ma'lumotlarga tayaning. O'zingizdan aniq statistik raqamlarni (foizlar, aholi jon boshiga daromad, bozor hajmi kabi) TO'QIB CHIQARMANG.
+- Investitsiya va foyda summalari — bu O'zbekiston sharoitidagi TAXMINIY oraliqlar. Ularni real va ehtiyotkorlik bilan bering, oshirib yubormang.
+- Agar biror ma'lumot yetishmasa yoki noaniq bo'lsa, buni ochiq tan oling (masalan: "aniq raqam uchun qo'shimcha ma'lumot kerak") — soxta raqam yozmang.
+- Manba sifatida o'zingizga rasmiy statistikani nisbat bermang; siz faqat berilgan ma'lumot asosida amaliy tavsiya berasiz.
+
 JSON formatda qaytaring:
 {{
-  "summary": "Mahalla haqida 3-4 jumlalik qisqa xulosa va biznes imkoniyatlari",
+  "summary": "Mahalla haqida 3-4 jumlalik qisqa xulosa va biznes imkoniyatlari (faqat berilgan ma'lumotga asoslangan)",
   "top_businesses": [
     {{
       "name": "Biznes nomi",
       "reason": "Nima uchun bu mahalla uchun mos (1-2 jumla)",
-      "investment": "Boshlang'ich investitsiya (masalan: 30-50 mln so'm)",
-      "profitability": "Oylik foyda darajasi (masalan: 8-15 mln so'm)"
+      "investment": "Taxminiy boshlang'ich investitsiya (masalan: 30-50 mln so'm)",
+      "profitability": "Taxminiy oylik foyda darajasi (masalan: 8-15 mln so'm)"
     }},
     {{...}},
     {{...}}
   ]
 }}
 
-Faqat O'zbek tilida, real va amaliy bo'lsin.
+Faqat O'zbek tilida, real, amaliy va halol bo'lsin.
 """
 
         try:
@@ -264,7 +270,7 @@ Faqat O'zbek tilida, real va amaliy bo'lsin.
             response = await self.client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": "Siz O'zbekiston mahallalari uchun tajribali biznes tahlili mutaxassisisiz."},
+                    {"role": "system", "content": "Siz O'zbekiston mahallalari uchun tajribali biznes tahlili mutaxassisisiz. Halolsiz: faqat berilgan ma'lumotga tayanasiz, aniq statistik raqamlarni to'qib chiqarmaysiz, summalarni taxminiy va real beradi."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2000,
