@@ -7,6 +7,8 @@ services:
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-flash-latest}
       - ADMINS=${ADMINS}
       - PRESENTON_URL=http://presenton:80
       - API_SECRET=${API_SECRET:-aislide_secret_2026}

@@ -4,7 +4,7 @@
 import asyncio
 import logging
 from typing import Awaitable, Callable, Dict, Optional
-from openai import AsyncOpenAI
+from utils.llm_client import LLMClient
 
 ProgressCallback = Callable[[int, int, str], Awaitable[None]]
 
@@ -34,7 +34,7 @@ class BusinessPlanGenerator:
     }
 
     def __init__(self, api_key: str):
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = LLMClient(api_key=api_key)  # Gemini asosiy, GPT zaxira
 
     async def generate(
             self,

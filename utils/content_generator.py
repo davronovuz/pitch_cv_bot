@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from typing import Dict, List, Optional
-from openai import AsyncOpenAI
+from utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class ContentGenerator:
     """
 
     def __init__(self, api_key: str):
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = LLMClient(api_key=api_key)  # Gemini asosiy, GPT zaxira
 
     async def generate_pitch_deck_content(
             self,

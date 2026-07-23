@@ -8,7 +8,7 @@ Faylni utils/ papkasiga joylashtiring
 import json
 import logging
 import traceback
-from openai import AsyncOpenAI
+from utils.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class WeeklyReportGenerator:
     """ChatGPT orqali haftalik ish rejasi yaratuvchi"""
 
     def __init__(self, api_key: str):
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = LLMClient(api_key=api_key)  # Gemini asosiy, GPT zaxira
 
     async def generate_weekly_report(
             self,
